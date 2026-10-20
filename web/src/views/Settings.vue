@@ -474,7 +474,7 @@ onMounted(async () => {
                 配置账号离线后的通知渠道和消息内容。
               </p>
             </div>
-            <BaseButton size="sm" :loading="offlineSaving" :disabled="offlineTesting" @click="handleSaveOffline">
+            <BaseButton size="sm" :loading="offlineSaving" :disabled="offlineTesting" @click="handleSaveOffline(currentAccountId)">
               保存通知设置
             </BaseButton>
           </div>
@@ -486,7 +486,7 @@ onMounted(async () => {
             :testing="offlineTesting"
             :show-save="false"
             @open-docs="openChannelDocs"
-            @test="handleTestOffline"
+            @test="handleTestOffline(currentAccountId)"
           />
         </div>
 

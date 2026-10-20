@@ -473,7 +473,7 @@ function createWorkerManager(deps) {
                 }
 
                 const autoDeleteMs = typeof getOfflineAutoDeleteMs === 'function'
-                    ? getOfflineAutoDeleteMs(wrk.username)
+                    ? getOfflineAutoDeleteMs(accountId, wrk.username)
                     : Infinity;
                 if (!wrk.autoDeleteTriggered && offlineDuration >= autoDeleteMs) {
                     wrk.autoDeleteTriggered = true;

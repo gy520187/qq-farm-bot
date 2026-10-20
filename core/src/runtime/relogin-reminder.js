@@ -15,8 +15,10 @@ function createReloginReminderService(deps) {
 
   const reloginWatchers = new Map();
 
-  function getOfflineAutoDeleteMs(username = '') {
-    const cfg = store.getOfflineReminder ? store.getOfflineReminder(username) : null;
+  function getOfflineAutoDeleteMs(accountId = '', username = '') {
+    const cfg = store.getAccountOfflineReminder
+      ? store.getAccountOfflineReminder(accountId, username)
+      : (store.getOfflineReminder ? store.getOfflineReminder(username) : null);
     const seconds = Math.max(0, Number.parseInt(cfg && cfg.offlineDeleteSec, 10) || 0);
     return seconds === 0 ? Infinity : seconds * 1000;
   }
@@ -278,7 +280,9 @@ function createReloginReminderService(deps) {
         `触发下线提醒: 账号=${  accountName || accountId  }, 原因=${  reason}`,
         { accountId, accountName, reason, username });
 
-      const cfg = store.getOfflineReminder ? store.getOfflineReminder(username) : null;
+      const cfg = store.getAccountOfflineReminder
+        ? store.getAccountOfflineReminder(accountId, username)
+        : (store.getOfflineReminder ? store.getOfflineReminder(username) : null);
       if (!cfg) {
         log('错误', `未找到下线提醒配置: 用户=${  username || '(空)'}`);
         return;

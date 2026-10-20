@@ -328,10 +328,12 @@ export const useSettingStore = defineStore('setting', () => {
     }
   }
 
-  async function saveOfflineConfig(config: OfflineConfigSavePayload) {
+  async function saveOfflineConfig(accountId: string, config: OfflineConfigSavePayload) {
     loading.value = true
     try {
-      const { data } = await api.post('/api/settings/offline-reminder', config)
+      const { data } = await api.post('/api/settings/offline-reminder', config, {
+        headers: { 'x-account-id': String(accountId) },
+      })
       if (data && data.ok) {
         settings.value.offlineReminder = normalizeOfflineReminder(config)
         return { ok: true }

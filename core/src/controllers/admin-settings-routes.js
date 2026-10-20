@@ -11,10 +11,10 @@ function requireAccountAccess(req, res, { getAccountIdFromRequest, canAccessAcco
   return accountId;
 }
 
-function getOfflineReminderConfig(store, currentUser, body) {
+function getOfflineReminderConfig(store, currentUser, body, accountId) {
   const saved =
-    store.getOfflineReminder && currentUser
-      ? store.getOfflineReminder(currentUser.username)
+    store.getAccountOfflineReminder && currentUser
+      ? store.getAccountOfflineReminder(accountId, currentUser.username)
       : {};
   return { ...(saved || {}), ...(body || {}) };
 }
@@ -137,8 +137,8 @@ function buildSettingsPayload(store, accountId, currentUser) {
         : "level",
     ui: store.getUI(),
     offlineReminder:
-      store.getOfflineReminder && currentUser
-        ? store.getOfflineReminder(currentUser.username)
+      store.getAccountOfflineReminder && currentUser
+        ? store.getAccountOfflineReminder(accountId, currentUser.username)
         : offlineReminderDefault,
   };
 }
@@ -305,6 +305,11 @@ function registerAdminSettingsRoutes({
 
   app.post("/api/settings/offline-reminder", async (req, res) => {
     try {
+      const accountId = requireAccountAccess(req, res, {
+        getAccountIdFromRequest,
+        canAccessAccount,
+      });
+      if (!accountId) return;
       const body = req.body && typeof req.body === "object" ? req.body : {};
       const currentUser = req.currentUser;
       if (!currentUser) {
@@ -318,10 +323,11 @@ function registerAdminSettingsRoutes({
       }
 
       const data = store.setOfflineReminder
-        ? store.setOfflineReminder(body, currentUser.username)
+        ? store.setOfflineReminder(body, accountId)
         : {};
       if (Number(body.offlineDeleteSec || 0) > 0) {
         logger.warn("更新下线提醒离线删除设置", {
+          accountId,
           user: currentUser.username,
           offlineDeleteSec: Number(body.offlineDeleteSec || 0),
           channel: String(body.channel || ""),
@@ -336,9 +342,14 @@ function registerAdminSettingsRoutes({
 
   app.post("/api/settings/offline-reminder/test", async (req, res) => {
     try {
+      const accountId = requireAccountAccess(req, res, {
+        getAccountIdFromRequest,
+        canAccessAccount,
+      });
+      if (!accountId) return;
       const currentUser = req.currentUser;
       const body = req.body && typeof req.body === "object" ? req.body : {};
-      const config = getOfflineReminderConfig(store, currentUser, body);
+      const config = getOfflineReminderConfig(store, currentUser, body, accountId);
       const result = await sendOfflineReminderTest(config);
       if (!result) {
         return res

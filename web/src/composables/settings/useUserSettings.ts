@@ -295,10 +295,10 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
     syncLocalOfflineSettings()
   }, { deep: true })
 
-  async function handleSaveOffline() {
+  async function handleSaveOffline(accountId?: string) {
     offlineSaving.value = true
     try {
-      const res = await settingStore.saveOfflineConfig(localOffline.value)
+      const res = await settingStore.saveOfflineConfig(String(accountId || ''), localOffline.value)
 
       if (res.ok) {
         showAlert('下线提醒设置已保存', 'primary')
@@ -312,10 +312,12 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
     }
   }
 
-  async function handleTestOffline() {
+  async function handleTestOffline(accountId?: string) {
     offlineTesting.value = true
     try {
-      const { data } = await api.post('/api/settings/offline-reminder/test', localOffline.value)
+      const { data } = await api.post('/api/settings/offline-reminder/test', localOffline.value, {
+        headers: { 'x-account-id': String(accountId || '') },
+      })
       if (data?.ok) {
         showAlert('测试消息发送成功', 'primary')
       }

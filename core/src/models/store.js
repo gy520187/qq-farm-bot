@@ -1579,6 +1579,20 @@ function getOfflineReminder(username) {
     return normalizeOfflineReminder({});
 }
 
+function getAccountOfflineReminder(accountId, fallbackUsername) {
+    const accountKey = String(accountId || '').trim();
+    const reminders = globalConfig.userOfflineReminders && typeof globalConfig.userOfflineReminders === 'object'
+        ? globalConfig.userOfflineReminders : {};
+    if (accountKey && reminders[accountKey]) {
+        return normalizeOfflineReminder(reminders[accountKey]);
+    }
+    const fallbackKey = String(fallbackUsername || '').trim();
+    if (fallbackKey && reminders[fallbackKey]) {
+        return normalizeOfflineReminder(reminders[fallbackKey]);
+    }
+    return normalizeOfflineReminder(globalConfig.offlineReminder);
+}
+
 function setOfflineReminder(config, username) {
     if (!username) {
         const current = normalizeOfflineReminder(globalConfig.offlineReminder);
@@ -2084,6 +2098,7 @@ module.exports = {
     getUI,
     setUITheme,
     getOfflineReminder,
+    getAccountOfflineReminder,
     setOfflineReminder,
     deleteUserOfflineReminder,
     getAccounts,
