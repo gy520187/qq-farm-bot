@@ -1,10 +1,38 @@
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 let pushoo = null;
 try {
   pushoo = require('pushoo').default;
 } catch {
   pushoo = null;
+}
+
+/** 发送 OneBot 11 HTTP API（兼容 NapCat/其他 OneBot 实现的 Bearer 鉴权）。 */
+async function sendOneBotMessage(tokenUrl, title, content) {
+  const urlObj = new URL(tokenUrl);
+  const { searchParams } = urlObj;
+  const groupId = searchParams.get('group_id');
+  const userId = searchParams.get('user_id');
+  const accessToken = searchParams.get('access_token') || searchParams.get('token') || '';
+  searchParams.delete('group_id');
+  searchParams.delete('user_id');
+  searchParams.delete('access_token');
+  searchParams.delete('token');
+
+  const body = { message: title ? `${title}\n${content}` : content };
+  if (groupId) body.group_id = Number(groupId);
+  if (userId) body.user_id = Number(userId);
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
+  const response = await axios.post(urlObj.toString(), body, { timeout: 5000, headers });
+  const data = response.data;
+  if (data && data.retcode !== 0 && data.retcode !== undefined) {
+    throw new Error(`[${data.retcode}] ${data.status || 'Unknown Error'}`);
+  }
+  return data;
 }
 
 function assertRequiredText(name, value) {
@@ -92,6 +120,11 @@ async function sendPushooMessage(payload = {}) {
         method: 'POST',
       },
     };
+  }
+
+  if (channel === 'onebot') {
+    const data = await sendOneBotMessage(token, title, content);
+    return parsePushResult(data);
   }
 
   const result = await pushoo(channel, request);
