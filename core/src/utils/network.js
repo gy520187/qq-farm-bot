@@ -11,6 +11,7 @@ const { AceService } = require('../services/ace-service');
 const { createScheduler } = require('../services/scheduler');
 const { updateStatusFromLogin, updateStatusGold, updateStatusLevel } = require('../services/status');
 const { recordOperation, recordTongQiGift, getTongQiGiftCount } = require('../services/stats');
+const { invalidateLandForecast } = require('../services/level-forecast');
 const { types } = require('./proto');
 const { toLong, toNum, syncServerTime, log, logWarn } = require('./utils');
 const cryptoWasm = require('./crypto-wasm');
@@ -371,6 +372,10 @@ function handleMessage(data) {
                 if (errorCode !== 0) {
                     cb(new Error(`${meta.service_name}.${meta.method_name} 错误: code=${errorCode} ${meta.error_message || ''}`));
                 } else {
+                    if ((meta.service_name === 'gamepb.plantpb.PlantService' && meta.method_name !== 'AllLands')
+                        || (meta.service_name === 'gamepb.itempb.ItemService' && meta.method_name === 'Use')) {
+                        invalidateLandForecast();
+                    }
                     cb(null, msg.body, meta);
                 }
                 return;
@@ -420,6 +425,7 @@ function handleNotify(msg) {
                 if (lands.length > 0) {
                     // 如果是自己的农场，触发事件
                     if (hostGid === userState.gid || hostGid === 0) {
+                        invalidateLandForecast();
                         networkEvents.emit('landsChanged', lands);
                     } else {
                         networkEvents.emit('friendLandsObserved', {
@@ -925,6 +931,7 @@ function cleanup(reason = '网络清理') {
     stopSecurityRuntime(reason);
     rejectAllPendingRequests(`请求已中断: ${reason}`);
     networkScheduler.clearAll();
+    invalidateLandForecast();
     // pendingCallbacks.clear();
 }
 

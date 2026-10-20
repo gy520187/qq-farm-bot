@@ -20,19 +20,21 @@ defineProps<{ item: any, named?: boolean }>()
 }
 .reward-name {
   display: block;
-  font-size: 2.7cqw;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1.3;
+  margin-bottom: 3px;
   overflow-wrap: anywhere;
 }
 .reward-frame {
   position: relative;
   width: 100%;
   aspect-ratio: 1;
-  border: 0.6cqw solid #fff6dd;
-  border-radius: 2cqw;
+  border: 2px solid #fff6dd;
+  border-radius: 10px;
   background: #f6d477;
-  box-shadow: 0 0.3cqw 0.3cqw #9c7b4a55;
+  box-shadow: 0 1px 3px rgba(156, 123, 74, 0.3);
+  box-sizing: border-box;
 }
 .rarity-1 {
   background: #96ddee;
@@ -41,25 +43,29 @@ defineProps<{ item: any, named?: boolean }>()
   background: #d4a0f6;
 }
 .reward-frame img {
-  width: 90%;
-  height: 90%;
+  width: 88%;
+  height: 88%;
   object-fit: contain;
-  margin: 5%;
+  margin: 6%;
 }
 .reward-frame b {
   position: absolute;
-  right: 0.4cqw;
+  right: 2px;
   bottom: 0;
-  font-size: 2.6cqw;
+  font-size: 11px;
   line-height: 1.1;
   color: #68482f;
-  text-shadow: 0 0 0.4cqw #fff;
+  text-shadow: 0 0 2px #fff;
 }
 .reward-fallback {
   display: flex;
   height: 100%;
   align-items: center;
   justify-content: center;
-  font-size: 2.3cqw;
+  font-size: 10px;
+  color: #68482f;
+  overflow: hidden;
+  padding: 2px;
+  box-sizing: border-box;
 }
 </style>

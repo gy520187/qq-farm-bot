@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import FarmScene from '@/components/FarmScene.vue'
+import LandDetailModal from '@/components/LandDetailModal.vue'
 import { useAccountStore } from '@/stores/account'
 import { useFarmStore } from '@/stores/farm'
 import { useStatusStore } from '@/stores/status'
@@ -14,6 +15,13 @@ const statusStore = useStatusStore()
 const { lands, summary, weather, loading, dogSkillGiftPendingCount, dogSkillGiftLoading, dogSkillGiftError } = storeToRefs(farmStore)
 const { currentAccountId, currentAccount } = storeToRefs(accountStore)
 const { status, loading: statusLoading, realtimeConnected, currentStatusReady } = storeToRefs(statusStore)
+
+const detailLandId = ref<number | null>(null)
+const detailLand = computed(() => lands.value.find(land => land.id === detailLandId.value) || null)
+const currentAccountConnected = computed(() => !!status.value?.connection?.connected)
+watch(currentAccountId, () => {
+  detailLandId.value = null
+})
 
 const operating = ref(false)
 const farmLoaded = ref(false)
@@ -351,11 +359,19 @@ onUnmounted(() => {
               :style="farmStageStyle"
               @fertilize="handleLandFertilize"
               @remove="handleLandRemove"
+              @details="detailLandId = $event.id"
             />
           </div>
         </div>
       </div>
     </div>
+
+    <LandDetailModal
+      :land="detailLand"
+      :player="status?.status"
+      :connected="currentAccountConnected"
+      @close="detailLandId = null"
+    />
 
     <ConfirmModal
       :show="confirmVisible"

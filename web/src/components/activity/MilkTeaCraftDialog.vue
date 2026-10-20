@@ -27,28 +27,31 @@ function unlockLevel(r: any) {
 
 <template>
   <div class="craft-shade" @click.self="!busy && emit('close')">
-    <section class="craft-book" role="dialog" aria-modal="true" aria-labelledby="craft-title">
-      <button class="craft-close" aria-label="关闭奶茶工坊" :disabled="busy" @click="emit('close')">
-        <img :src="img('img_s4_closeBtn')" alt="">
-      </button>
-      <h2 id="craft-title">
-        奶茶工坊
-      </h2>
+    <section class="craft-dialog" role="dialog" aria-modal="true" aria-labelledby="craft-title">
+      <header class="craft-header">
+        <h2 id="craft-title">奶茶工坊</h2>
+        <button class="craft-close" aria-label="关闭奶茶工坊" :disabled="busy" @click="emit('close')">
+          ×
+        </button>
+      </header>
       <p v-if="error" class="craft-error" role="alert">
         {{ error }}
       </p>
       <div class="recipe-list">
         <article v-for="r in recipes" :key="r.recipe_id" class="recipe-card" :class="{ locked: !r.unlocked }">
-          <img class="recipe-name" :src="img(`img_s4TeaMaker_name${r.recipe_id}`)" :alt="r.recipe_name">
-          <div class="recipe-summary">
-            <div class="drink-picture">
-              <img :src="r.config?.image || img(`icon_s4_milktea_${r.recipe_id}`)" :alt="r.recipe_name"><img v-if="!r.unlocked" class="lock" :src="img('img_s4_v2_lock')" alt="未解锁">
-            </div>
-            <div class="recipe-price">
-              <span>售出单价</span><b><img :src="img('img_s4TeaUI_rewardpng')" alt="奶茶券">{{ r.token_price }}</b><b><span class="coin" aria-label="金币">金币</span>{{ r.coin_price }}</b>
+          <div class="recipe-head">
+            <img class="drink-image" :src="r.config?.image || img(`icon_s4_milktea_${r.recipe_id}`)" :alt="r.recipe_name">
+            <div class="recipe-info">
+              <h3>{{ r.recipe_name }}</h3>
+              <div class="recipe-price">
+                <span>售出单价</span>
+                <b><img :src="img('img_s4TeaUI_rewardpng')" alt="奶茶券">{{ r.token_price }}</b>
+                <b><span class="coin">金</span>{{ r.coin_price }}</b>
+              </div>
             </div>
             <div class="recipe-estimate">
-              <span>预计制作</span><strong>{{ hasSelection(r) ? '待结算' : '0' }}<small v-if="!hasSelection(r)">杯</small></strong>
+              <span>预计制作</span>
+              <strong>{{ hasSelection(r) ? '待结算' : '0' }}<small v-if="!hasSelection(r)">杯</small></strong>
             </div>
           </div>
           <div v-if="!r.unlocked" class="recipe-empty">
@@ -63,16 +66,16 @@ function unlockLevel(r: any) {
             </button>
           </div>
         </article>
-        <p v-if="!recipes.length" class="recipe-empty">
-          暂无配方数据
-        </p>
+        <p v-if="!recipes.length" class="recipe-empty">暂无配方数据</p>
       </div>
       <footer class="craft-footer">
-        <span>已选：{{ selected.length }}</span>
+        <label class="select-all">
+          <input type="checkbox" :checked="allSelected" :disabled="blocked || !available.length" @change="selected = allSelected ? [] : [...available]"><span>全选</span>
+        </label>
+        <span class="selected-count">已选：{{ selected.length }}</span>
         <button class="craft-confirm" :disabled="blocked || !selected.length" @click="emit('craft', { fruitUids: [...selected] })">
           {{ busy ? '制作中…' : '确认制作' }}
         </button>
-        <label class="select-all"><input type="checkbox" :checked="allSelected" :disabled="blocked || !available.length" @change="selected = allSelected ? [] : [...available]"><span>全选</span></label>
       </footer>
     </section>
   </div>
@@ -80,234 +83,244 @@ function unlockLevel(r: any) {
 
 <style scoped>
 .craft-shade {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 12;
-  background: #21180fc4;
-  overflow: hidden;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #39261899;
 }
-.craft-book {
-  /* Definite bounds keep the list from sizing the grid and pushing the footer off-screen. */
-  position: absolute;
-  inset: 13% 6% 6%;
-  min-height: 0;
-  min-width: 0;
-  box-sizing: border-box;
-  padding: 11cqw 5cqw 5cqw;
-  background: url('/activity/milk-tea/img_s4_popBg1.png') center / 100% 100% no-repeat;
-  color: #966747;
-  font-weight: 800;
+.craft-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid #f0e2d0;
+  background: #fff;
+  color: #5b4632;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  box-shadow: 0 12px 40px rgba(60, 30, 10, 0.25);
+}
+.craft-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 48px 10px 18px;
+  border-bottom: 1px solid #f3e7d8;
+  flex-shrink: 0;
+}
+.craft-header h2 {
+  margin: 0;
+  font-size: 17px;
 }
 .craft-close {
   position: absolute;
-  top: 0;
-  right: 3%;
-  width: 13%;
-  padding: 0;
-  z-index: 2;
+  right: 10px;
+  top: 8px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: #fdf7ef;
+  color: #8a6a4f;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
 }
-.craft-close img {
-  width: 100%;
-}
-h2 {
-  flex: none;
-  margin: 0 12% 4cqw;
-  text-align: center;
-  font-size: 5.5cqw;
-  color: #635d49;
-  line-height: 1.5;
-  background: url('/activity/milk-tea/img_s4_titleBg.png') center / 100% 100% no-repeat;
+.craft-error {
+  margin: 10px 18px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff1e8;
+  color: #a33f27;
+  font-size: 13px;
+  flex-shrink: 0;
 }
 .recipe-list {
-  flex: 1 1 0;
+  flex: 1;
   min-height: 0;
-  overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 1.5cqw 0 3cqw;
-  scrollbar-width: thin;
-  scrollbar-color: #c3a47b transparent;
-  mask-image: linear-gradient(#000 96%, transparent);
-}
-.recipe-card {
-  position: relative;
-  min-height: 38cqw;
-  margin-bottom: 2.6cqw;
-  padding: 3cqw 1.8cqw 1.5cqw;
-  box-sizing: border-box;
-  background: url('/activity/milk-tea/img_s4TeaMaker_bg4.png') center / 100% 100% no-repeat;
-}
-.recipe-name {
-  position: absolute;
-  top: -2cqw;
-  left: 2cqw;
-  width: 21cqw;
-  height: 6.4cqw;
-  object-fit: contain;
-  z-index: 1;
-}
-.recipe-summary {
-  display: grid;
-  grid-template-columns: 32% 36% 32%;
-  align-items: center;
-  min-height: 17cqw;
-}
-.drink-picture {
-  position: relative;
-  height: 17cqw;
-  background: url('/activity/milk-tea/img_s4TeaMaker_shadow.png') center bottom / 65% auto no-repeat;
-}
-.drink-picture > img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-.locked .drink-picture > img:first-child {
-  filter: brightness(0.35) sepia(1);
-}
-.drink-picture > .lock {
-  position: absolute;
-  width: 4cqw;
-  height: 5cqw;
-  left: 40%;
-  top: 40%;
-}
-.recipe-price,
-.recipe-estimate {
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  gap: 0.8cqw;
-  font-size: 2.9cqw;
+  gap: 12px;
+}
+.recipe-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #f3e7d8;
+  background: #fdfaf5;
+}
+.recipe-card.locked {
+  opacity: 0.7;
+}
+.recipe-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.drink-image {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: #fff;
+}
+.recipe-info {
+  flex: 1;
   min-width: 0;
+}
+.recipe-info h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+.recipe-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 13px;
+  color: #8a6a4f;
+}
+.recipe-price span {
+  font-size: 11px;
+  color: #b09a80;
 }
 .recipe-price b {
   display: flex;
   align-items: center;
-  gap: 0.7cqw;
-  color: #805438;
-  overflow-wrap: anywhere;
+  gap: 4px;
+  color: #b06a2e;
 }
 .recipe-price img {
-  width: 4cqw;
-  height: 3.4cqw;
+  width: 16px;
+  height: 14px;
   object-fit: contain;
 }
 .coin {
   display: inline-grid;
   place-items: center;
-  width: 3.4cqw;
-  height: 3.4cqw;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #ffc52e;
-  border: 0.3cqw solid #efa01c;
   color: #b87616;
-  font-size: 1.1cqw;
+  font-size: 9px;
+  font-weight: 900;
 }
 .recipe-estimate {
   text-align: center;
-  align-self: start;
-  padding-top: 2cqw;
+  flex-shrink: 0;
+}
+.recipe-estimate span {
+  display: block;
+  font-size: 11px;
+  color: #b09a80;
 }
 .recipe-estimate strong {
-  margin-top: 1cqw;
-  color: #89472d;
-  font-size: 4.5cqw;
+  font-size: 20px;
+  color: #db7436;
 }
 .recipe-estimate small {
-  font-size: 3cqw;
-  margin-left: 0.4cqw;
+  font-size: 11px;
+  margin-left: 2px;
 }
 .recipe-empty {
-  display: grid;
-  place-items: center;
-  min-height: 14.5cqw;
-  margin: 0;
-  color: #b39a62;
-  font-size: 2.8cqw;
+  margin: 10px 0 4px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #fdf7ef;
+  color: #b09a80;
+  font-size: 13px;
   text-align: center;
 }
 .fruit-list {
   display: flex;
-  gap: 1.5cqw;
   flex-wrap: wrap;
-  min-height: 14.5cqw;
-  padding: 1cqw;
+  gap: 8px;
+  margin-top: 10px;
 }
 .fruit-choice {
   position: relative;
-  width: 12cqw;
-  height: 12cqw;
-  padding: 1cqw;
-  background: url('/activity/milk-tea/img_s4TeaMaker_itemBg.png') center / 100% 100% no-repeat;
-  font-size: 2cqw;
-}
-.fruit-choice.selected::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: url('/activity/milk-tea/img_s4TeaMaker_selected.png') center / 100% 100% no-repeat;
-  pointer-events: none;
+  width: 64px;
+  height: 64px;
+  padding: 4px;
+  border: 2px solid #f0e2d0;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #5b4632;
+  font-size: 11px;
 }
 .fruit-choice img {
-  width: 100%;
-  height: 85%;
+  width: 42px;
+  height: 36px;
   object-fit: contain;
 }
 .fruit-choice b {
-  position: absolute;
-  bottom: 0.8cqw;
-  right: 1cqw;
-  color: #805438;
+  color: #b06a2e;
+}
+.fruit-choice.selected {
+  border-color: #ed9121;
+  background: #fff7ea;
+  box-shadow: 0 0 0 2px #f6b35255;
 }
 .craft-footer {
-  flex: 0 0 auto;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 23% 50% 27%;
+  flex-shrink: 0;
+  display: flex;
   align-items: center;
-  padding: 2cqw 0 3cqw;
-  font-size: 3.6cqw;
-  color: #a36545;
-}
-.craft-confirm {
-  height: 12cqw;
-  padding: 0;
-  font-weight: 900;
-  font-size: 4.4cqw;
-  background: url('/activity/milk-tea/img_s4_btn0.png') center / 100% 100% no-repeat;
-  color: #665e4c;
-}
-.craft-confirm:disabled {
-  background-image: url('/activity/milk-tea/img_s4_btn3.png');
-  opacity: 1;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid #f3e7d8;
+  background: #fffaf3;
 }
 .select-all {
   display: flex;
   align-items: center;
-  justify-content: end;
-  gap: 1cqw;
+  gap: 6px;
+  font-size: 13px;
   cursor: pointer;
+  user-select: none;
 }
 .select-all input {
-  appearance: none;
-  width: 4.5cqw;
-  height: 4.5cqw;
-  margin: 0;
-  border: 0.3cqw solid #bc885d;
-  border-radius: 0.5cqw;
-  background: #a76c49;
+  accent-color: #ed9121;
+  width: 16px;
+  height: 16px;
 }
-.select-all input:checked {
-  background: #a76c49 url('/activity/milk-tea/img_s4TeaMaker_selected.png') center / cover;
+.selected-count {
+  margin-left: auto;
+  font-size: 13px;
+  color: #8a6a4f;
 }
-.craft-error {
-  flex: 0 0 auto;
-  max-height: 9cqw;
-  overflow: auto;
-  margin: -2cqw 0 1cqw;
-  font-size: 2.5cqw;
-  color: #ac3528;
+.craft-confirm {
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f6b352, #ed9121);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(240, 151, 46, 0.3);
+}
+.craft-confirm:disabled {
+  cursor: default;
+  opacity: 0.5;
+  box-shadow: none;
 }
 </style>

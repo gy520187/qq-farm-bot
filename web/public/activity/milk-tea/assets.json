@@ -4310,5 +4310,117 @@
     "file": "icon_chuang05.png",
     "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/e5/e57dc433-8114-4c09-8cdc-03a1875d3808.3de00.png",
     "sha256": "f12ead85d48f9bbe78bec6dcefd17c24baf976ad1d93eecc01438238726c9aba"
+  },
+  {
+    "path": "item_2163",
+    "file": "item_2163.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/03/0396de0e-605d-42ee-9a97-fa1ae70fa1fb.dccef.png",
+    "sha256": "e6b800579a06e9ff1431afa7e2a6a8aa1ef0a9ecb747e4adfd9408dfb4db22b6",
+    "cocosPath": "gui/texture/avatarDetail/img_avatar_S4_1"
+  },
+  {
+    "path": "item_201012",
+    "file": "item_201012.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/81/81f9220e-5c18-4df8-b558-925a74bd79bc.f78cf.png",
+    "sha256": "e3de9cdcb113010be164087c531592a7ebad0aae335b16ccd0c7086dcd9bc8ad",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_house_11"
+  },
+  {
+    "path": "item_202011",
+    "file": "item_202011.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/52/52c7e3c2-8188-45c8-8459-7f0e8582e999.99823.png",
+    "sha256": "133a802be3be682242f885c38969a1e2094b1ff8127e5fcd29213b082ff1228b",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_board_10"
+  },
+  {
+    "path": "item_203012",
+    "file": "item_203012.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/55/55ad6da0-8349-4f94-b167-7b045650cf27.b69d7.png",
+    "sha256": "c33ab2a7b341b8d86bef6e8a0eb5f4c444b3eab3747f247246d6b82c237a5632",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_barrier_11"
+  },
+  {
+    "path": "item_205011",
+    "file": "item_205011.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/cd/cdd4b018-8507-4c3c-bfa7-5cead0f7cb05.f9602.png",
+    "sha256": "b315ca9ccb668993999da4dfe048a9dff414fa4d3a98769f255cad26b9c400b3",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_doghouse_10"
+  },
+  {
+    "path": "item_206011",
+    "file": "item_206011.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/02/028b316a-3dee-4c68-95d4-eaca6ec4be3b.ed8ae.png",
+    "sha256": "af77f896571279478e2f4be11ff9d5f0b337f5578fe96485c97f0e53d2fc339b",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_warehouse_10"
+  },
+  {
+    "path": "item_207012",
+    "file": "item_207012.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/3b/3b115417-1501-4da7-81e8-8ab803b9c319.084b4.png",
+    "sha256": "0c3ec4c7309ea89f0a0d3b1e8f3273cd876a687934812581779b2aa4771f8011",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_road_11"
+  },
+  {
+    "path": "item_208012",
+    "file": "item_208012.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/79/7933d5cc-124f-4d40-8822-90d9888bd4a7.4d269.png",
+    "sha256": "959e1bf7c37eddd7f91b540a4cf92ffc31be2d811afa06bfac196c1a32890235",
+    "cocosPath": "gui/texture/skinIcon/icon_skin_fence_11"
+  },
+  {
+    "path": "item_401007",
+    "file": "item_401007.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/08/0832f221-3604-4a70-bcf4-761ba83e0b6b.6a955.png",
+    "sha256": "931dd30591f63fab703c5ade9e9ae33e61c3eef8d48c48ec5941a9bbc6874e2e",
+    "cocosPath": "gui/texture/nameplate/icon/icon_nameplate_S4_1"
+  },
+  {
+    "path": "skinDecorationIcon/icon_wuding04",
+    "file": "icon_wuding04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/aa/aa1c5cf1-5b5a-433d-b2c5-19bdd12c3b8b.c3e3c.png",
+    "sha256": "96f90496ef19dd0dfaa31924d7e95ef8e5b4c8e95b1f5dd685e1c1f07db6c495",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_wuding04"
+  },
+  {
+    "path": "skinDecorationIcon/icon_men04",
+    "file": "icon_men04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/a1/a12cdb4a-c305-4eb3-856e-c0a8311a70cd.123f6.png",
+    "sha256": "793455fa1f9f71383703d6c449bbc12c5fe3b08e4a69acdbcbb48a94133bbed3",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_men04"
+  },
+  {
+    "path": "skinDecorationIcon/icon_chuang04",
+    "file": "icon_chuang04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/04/0451d383-290e-4046-9d9e-859f99445daf.89c5c.png",
+    "sha256": "43f649717dd98b8668e65802aac34b09d4122f136029a6764be834d037504023",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_chuang04"
+  },
+  {
+    "path": "skinDecorationIcon/icon_qiangmian04",
+    "file": "icon_qiangmian04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/d1/d14725d0-797b-42e7-ad47-63047a66f0a2.9a537.png",
+    "sha256": "710b60f2e6363ac245171a759cdf65c83114c61048418686dfc5643c7f18239f",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_qiangmian04"
+  },
+  {
+    "path": "skinDecorationIcon/icon_diban04",
+    "file": "icon_diban04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/e1/e1e7082e-b399-48ae-bf0e-aec964a52551.c7c15.png",
+    "sha256": "f36d8f64844195648cc893ccab89f1010db392ff56bcd4128e0681bb54c761c9",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_diban04"
+  },
+  {
+    "path": "skinDecorationIcon/icon_zhuoyi04",
+    "file": "icon_zhuoyi04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/c1/c1aa2e31-7263-45e5-b5c3-da658f640d9c.f90c8.png",
+    "sha256": "f1831abadcb2a873f319e6cc3a7ef3c97d9a86c0e29ff1968cf38ebf930dbb9e",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_zhuoyi04"
+  },
+  {
+    "path": "skinDecorationIcon/icon_zhuangshi04",
+    "file": "icon_zhuangshi04.png",
+    "url": "https://cdn-resource.nqf.qq.com/release/remote/extraRes/native/a2/a24bff4d-8fc2-4034-900e-5f387dcc0c53.00555.png",
+    "sha256": "f84c7cb95c72692a648133e429ce3ffc1e6a47edb20ddca8e9ce66484d7e6b04",
+    "cocosPath": "gui/texture/skinDecorationIcon/icon_zhuangshi04"
   }
 ]

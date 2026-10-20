@@ -2,6 +2,7 @@ const { PlantPhase, PHASE_NAMES } = require('../config/config');
 const { getPlantName, getPlantExp, getPlantById, getPlantGrowTime, getPlantGrowPhases, getSeedImageBySeedId, getMutantDisplayPlantId, getMutantPlantImageByPhase, getMutantEffectsByIds } = require('../config/gameConfig');
 const { toNum, toTimeSec, getServerTimeSec, logWarn } = require('../utils/utils');
 const { getAllLands } = require('./farm-api');
+const { buildLandUpgradeDetail } = require('./farm/land-upgrade');
 
 const GOLDEN_BUG_ITEM_ID = 301101;
 const GOLDEN_BUG_SOCIAL_TYPE = 2;
@@ -480,6 +481,7 @@ async function getLandsDetail() {
 
       const { sourceLand, occupiedByMaster, masterLandId, occupiedLandIds } =
         getDisplayLandContext(land, landMap);
+      const landInfo = buildLandUpgradeDetail(land, landMap);
 
       // 合种作物只展示主土地；从属土地的信息已经合并到主土地卡片。
       if (occupiedByMaster) continue;
@@ -493,7 +495,8 @@ async function getLandsDetail() {
           couldUnlock, couldUpgrade,
           currentSeason: 0, totalSeason: 0,
           occupiedByMaster: false, masterLandId: 0,
-          occupiedLandIds: [], plantSize: 1
+          occupiedLandIds: [], plantSize: 1,
+          landInfo
         });
         continue;
       }
@@ -508,7 +511,8 @@ async function getLandsDetail() {
           level, maxLevel, landsLevel, landSize, landType, landTypeName,
           couldUnlock, couldUpgrade,
           currentSeason: 0, totalSeason: 0,
-          occupiedByMaster, masterLandId, occupiedLandIds, plantSize: 1
+          occupiedByMaster, masterLandId, occupiedLandIds, plantSize: 1,
+          landInfo
         });
         continue;
       }
@@ -521,7 +525,8 @@ async function getLandsDetail() {
           level, maxLevel, landsLevel, landSize, landType, landTypeName,
           couldUnlock, couldUpgrade,
           currentSeason: 0, totalSeason: 0,
-          occupiedByMaster, masterLandId, occupiedLandIds, plantSize: 1
+          occupiedByMaster, masterLandId, occupiedLandIds, plantSize: 1,
+          landInfo
         });
         continue;
       }
@@ -593,7 +598,8 @@ async function getLandsDetail() {
         level, maxLevel, landsLevel, landSize, landType, landTypeName,
         couldUnlock, couldUpgrade,
         occupiedByMaster, masterLandId, occupiedLandIds,
-        plantSize, mutantEffects, qixiDew
+        plantSize, mutantEffects, qixiDew,
+        landInfo
       });
     }
 

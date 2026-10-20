@@ -4,6 +4,7 @@ import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import api from '@/api'
+import LevelForecast from '@/components/LevelForecast.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -149,32 +150,11 @@ const displayName = computed(() => {
 
 const expRate = computed(() => {
   const gain = status.value?.sessionExpGained || 0
-  const uptime = status.value?.uptime || 0
+  const uptime = status.value?.sessionElapsedSeconds ?? status.value?.uptime ?? 0
   if (!uptime)
     return '0/小时'
   const rate = gain / (uptime / 3600)
   return `${Math.floor(rate)}/小时`
-})
-
-const timeToLevel = computed(() => {
-  const gain = status.value?.sessionExpGained || 0
-  const uptime = status.value?.uptime || 0
-  const current = status.value?.levelProgress?.current || 0
-  const needed = status.value?.levelProgress?.needed || 0
-
-  if (!needed || !uptime || gain <= 0)
-    return ''
-
-  const ratePerHour = gain / (uptime / 3600)
-  if (ratePerHour <= 0)
-    return ''
-
-  const expNeeded = Math.max(0, needed - current)
-  const minsToLevel = expNeeded / (ratePerHour / 60)
-
-  if (minsToLevel < 60)
-    return `约 ${Math.ceil(minsToLevel)} 分钟后升级`
-  return `约 ${(minsToLevel / 60).toFixed(1)} 小时后升级`
 })
 
 const fertilizerNormal = computed(() => dashboardItems.value.find((item: any) => Number(item.id) === 1011))
@@ -631,9 +611,9 @@ useIntervalFn(updateCountdowns, 1000)
             />
           </div>
           <div class="mt-2 flex justify-between text-xs text-gray-400">
-            <span>效率: {{ expRate }}</span>
-            <span>{{ timeToLevel }}</span>
+            <span>会话效率: {{ expRate }}</span>
           </div>
+          <LevelForecast v-if="status?.connection?.connected" :forecast="status?.levelForecast" />
         </div>
       </div>
 

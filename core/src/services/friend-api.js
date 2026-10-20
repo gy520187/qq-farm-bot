@@ -902,6 +902,14 @@ function inFriendQuietHours(now = new Date()) {
   return currentMin >= startMin || currentMin < endMin;
 }
 
+/** Check if the current time falls within the farm quiet hours. */
+function inFarmQuietHours(now = new Date()) {
+  if (!inFriendQuietHours(now)) return false;
+  const { getFriendQuietHours } = require('../models/store');
+  const quietHours = getFriendQuietHours();
+  return quietHours.continueFarm === false;
+}
+
 /** Clear all cooldown marks for invalid friend GIDs. */
 function clearAllInvalidKnownFriendGidCooldown() {
   invalidKnownFriendGidCooldownUntil.clear();
@@ -927,6 +935,7 @@ module.exports = {
   removeKnownFriendGid,
   parseTimeToMinutes,
   inFriendQuietHours,
+  inFarmQuietHours,
   getAllFriends,
   bootstrapQqFriendGids,
   getApplications,

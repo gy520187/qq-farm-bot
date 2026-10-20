@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'fertilize', land: any): void
   (e: 'remove', land: any): void
+  (e: 'details', land: any): void
 }>()
 
 const farmSceneImageCache = new Map<string, HTMLImageElement>()
@@ -201,11 +202,13 @@ onUnmounted(() => {
         :key="land.id"
         :land="land"
         isometric
+        show-details
         :style="landStyle(land)"
         :selected="selectedLandId === Number(land.id)"
         :selection-active="selectedLandId !== null"
         :show-actions="false"
         @select="selectLand"
+        @details="emit('details', $event)"
         @fertilize="emit('fertilize', land)"
         @remove="emit('remove', land)"
       />

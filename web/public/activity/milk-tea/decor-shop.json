@@ -1,0 +1,39 @@
+{
+  "source": "官方客户端 ItemInfo 配置 + 游戏内商店核对 + HAR 抓包（ActivityService List，2026-10-20）",
+  "updated": "2026-10-20",
+  "currency": "奶茶券",
+  "exchange_activity_id": 2026110102,
+  "shop_total": 14,
+  "decorations": [
+    { "name": "缤纷奶茶木牌", "kind": "单件", "item_id": 202011, "exchange_id": 313, "price": 40000, "image": "item_202011.png", "shop_icon": "img_exchange_item1.png", "unlock_level": null },
+    { "name": "缤纷奶茶栅栏", "kind": "单件", "item_id": 203012, "exchange_id": 314, "price": 20000, "image": "item_203012.png", "shop_icon": "img_exchange_item2.png", "unlock_level": 8 },
+    { "name": "缤纷奶茶狗屋", "kind": "单件", "item_id": 205011, "exchange_id": 315, "price": 90000, "image": "item_205011.png", "shop_icon": "img_exchange_item3.png", "unlock_level": 10 },
+    { "name": "缤纷奶茶仓库", "kind": "单件", "item_id": 206011, "exchange_id": 312, "price": 40000, "image": "item_206011.png", "shop_icon": "img_exchange_item4.png", "unlock_level": null },
+    { "name": "缤纷奶茶街道", "kind": "单件", "item_id": 207012, "exchange_id": 316, "price": 100000, "image": "item_207012.png", "shop_icon": "img_exchange_item5.png", "unlock_level": 12 },
+    { "name": "缤纷奶茶围栏", "kind": "单件", "item_id": 208012, "exchange_id": 311, "price": 20000, "image": "item_208012.png", "shop_icon": "img_exchange_item6.png", "unlock_level": null },
+    { "name": "屋顶套装", "kind": "套装", "item_id": 210031, "exchange_id": 322, "price": 96000, "image": "icon_wuding04.png", "shop_icon": "img_exchange_item7.png", "unlock_level": 12 },
+    { "name": "门套装", "kind": "套装", "item_id": 210032, "exchange_id": 318, "price": 37500, "image": "icon_men04.png", "shop_icon": "img_exchange_item8.png", "unlock_level": null },
+    { "name": "窗套装", "kind": "套装", "item_id": 210033, "exchange_id": 319, "price": 37500, "image": "icon_chuang04.png", "shop_icon": "img_exchange_item9.png", "unlock_level": null },
+    { "name": "墙面套装", "kind": "套装", "item_id": 210034, "exchange_id": 320, "price": 45000, "image": "icon_qiangmian04.png", "shop_icon": "img_exchange_item10.png", "unlock_level": 8 },
+    { "name": "地板套装", "kind": "套装", "item_id": 210035, "exchange_id": 321, "price": 45000, "image": "icon_diban04.png", "shop_icon": "img_exchange_item11.png", "unlock_level": 10 },
+    { "name": "桌椅套装", "kind": "套装", "item_id": 210036, "exchange_id": 317, "price": 30000, "image": "icon_zhuoyi04.png", "shop_icon": "img_exchange_item12.png", "unlock_level": null },
+    { "name": "装饰套装", "kind": "套装", "item_id": 210037, "exchange_id": 323, "price": 30000, "image": "icon_zhuangshi04.png", "shop_icon": "img_exchange_item13.png", "unlock_level": null },
+    { "name": "缤纷奶茶头像框", "kind": "单件", "item_id": 2163, "exchange_id": 331, "price": 15000, "image": "item_2163.png", "shop_icon": "item_2163.png", "unlock_level": null }
+  ],
+  "shop_image_map": {
+    "img_exchange_item1.png": "缤纷奶茶木牌（202011）",
+    "img_exchange_item2.png": "缤纷奶茶栅栏（203012）",
+    "img_exchange_item3.png": "缤纷奶茶狗屋（205011）",
+    "img_exchange_item4.png": "缤纷奶茶仓库（206011）",
+    "img_exchange_item5.png": "缤纷奶茶街道（207012）",
+    "img_exchange_item6.png": "缤纷奶茶围栏（208012）",
+    "img_exchange_item7.png": "屋顶套装（210031）",
+    "img_exchange_item8.png": "门套装（210032）",
+    "img_exchange_item9.png": "窗套装（210033）",
+    "img_exchange_item10.png": "墙面套装（210034）",
+    "img_exchange_item11.png": "地板套装（210035）",
+    "img_exchange_item12.png": "桌椅套装（210036）",
+    "img_exchange_item13.png": "装饰套装（210037）",
+    "item_2163.png": "缤纷奶茶头像框（2163，无独立商店图标，使用 ItemInfo 头像框图）"
+  }
+}

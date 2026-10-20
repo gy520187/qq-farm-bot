@@ -10,8 +10,26 @@ function normalizeWireMaps(value) {
 }
 const WINDOW = { startTime: 1792029600, settleTime: 1794671999, endTime: 1794844799 };
 const ACTIONS = { create: [53, 'create_shop'], rename: [54, 'rename_shop'], shop: [55, 'get_shop'], hireList: [56, 'get_hire_list'], hire: [57, 'hire'], workshop: [58, 'get_workshop'], cashier: [59, 'claim_cashier'], boost: [60, 'boost'], upgrade: [61, 'upgrade'], craft: [62, 'craft'], work: [63, 'get_work_page'], wages: [64, 'claim_wages'], interact: [65, 'interact'], rank: [66, 'get_rank'], sales: [67, 'get_sales_log'], hireDisabled: [68, 'set_hire_disable'] };
-const AUTO_ACTIONS = { milk_tea_cashier: 'cashier', milk_tea_wages: 'wages', milk_tea_upgrade: 'upgrade', milk_tea_craft: 'craft', milk_tea_boost: 'boost', milk_tea_hire: 'hire', milk_tea_seed_buy: 'buy', milk_tea_share_daily: 'shareDaily', milk_tea_share_rewards: 'shareRewards', milk_tea_fund_rewards: 'fundRewards' };
+const AUTO_ACTIONS = { milk_tea_cashier: 'cashier', milk_tea_wages: 'wages', milk_tea_upgrade: 'upgrade', milk_tea_seed_buy: 'buy', milk_tea_craft: 'craft', milk_tea_boost: 'boost', milk_tea_hire: 'hire', milk_tea_share_daily: 'shareDaily', milk_tea_share_rewards: 'shareRewards', milk_tea_fund_rewards: 'fundRewards' };
 function phase(now, window = WINDOW) { return now < window.startTime ? 'upcoming' : now > window.endTime ? 'ended' : now >= window.settleTime ? 'settling' : 'business'; }
+
+/** 从 Cocos 商店图标资源路径提取本地素材名（如 .../S4ShopIcon/img_exchange_item8/spriteFrame -> img_exchange_item8.png）。 */
+function shopIconFromRes(res) {
+  const parts = String(res || '').split('/').filter(Boolean);
+  const name = parts[parts.length - 2] || '';
+  return /^img_exchange_item\d+$/.test(name) ? `/activity/milk-tea/${name}.png` : '';
+}
+
+/** 商品 desc 字段复用时存放图标资源 JSON，解析后移除，避免页面显示协议原始串。 */
+function cleanGoodsDesc(desc) {
+  if (typeof desc !== 'string' || !desc.trim().startsWith('{')) return { desc, iconRes: '' };
+  try {
+    const parsed = JSON.parse(desc);
+    return { desc: '', iconRes: String(parsed.res || '') };
+  } catch {
+    return { desc: '', iconRes: '' };
+  }
+}
 // Official S4ShopUI: available, sold out, locked; then configured order.
 function compareShopGoods(a, b) {
   const group = goods => !goods.unlocked ? 3 : Number(goods.remaining) === 0 ? 2 : 1;
@@ -86,7 +104,11 @@ function createMilkTeaService({ types, sendMsgAsync, getBag, getBagItems, getSer
     const workshop = opened ? await op('workshop') : { recipes: [] };
     const work = await op('work'); const inventory = await bag();
     const recipes = list(workshop.recipes).map(recipe => ({ ...recipe, config: catalog.MilkTeaRecipeConfig.find(x => String(x.recipe_id) === recipe.recipe_id), fruits: inventory.filter(x => String(x.id) === String(catalog.MilkTeaRecipeConfig.find(c => String(c.recipe_id) === recipe.recipe_id)?.fruit_item_id?.split(':')[0])).map(x => ({ ...itemDto(x), uid: String(x.uid) })) }));
-    const goods = list(children.find(x => x.head?.id === '2026110102')?.shop?.goods).map(g => ({ ...g, items: list(g.item).map(itemDto), costs: list(g.cost).map(itemDto), remaining: Math.max(0, Number(g.purchase_limit) - Number(g.purchased_count)), unlocked: list(g.cond_hints).every(x => x.satisfied), affordable: available(list(g.cost), inventory), paid: Number(g.diamond_cost_count) > 0 || list(g.cost).some(x => Number(x.id) === 1004) }));
+    const goods = list(children.find(x => x.head?.id === '2026110102')?.shop?.goods).map(g => {
+        const items = list(g.item).map(itemDto);
+        const { desc, iconRes } = cleanGoodsDesc(g.desc);
+        return { ...g, desc, items, costs: list(g.cost).map(itemDto), icon_res: iconRes, image: items.find(i => i.image)?.image || shopIconFromRes(iconRes), remaining: Math.max(0, Number(g.purchase_limit) - Number(g.purchased_count)), unlocked: list(g.cond_hints).every(x => x.satisfied), affordable: available(list(g.cost), inventory), paid: Number(g.diamond_cost_count) > 0 || list(g.cost).some(x => Number(x.id) === 1004) };
+      });
     for (const good of goods) good.maxPurchasable = state.phase !== 'business' && good.category_tag === 'seed' ? 0 : maximumPurchase(good, inventory);
     goods.sort(compareShopGoods);
     // QQ native subscription URLs contain signatures; never expose them to web or logs.

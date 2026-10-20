@@ -4,6 +4,12 @@ import "activitypb.proto";
 import "pet-diary.proto";
 import "corepb.proto";
 // Recovered from official 2026-10-15 generated encoders; see protocol report.
+// Field numbers 1/2/101/154/157-174/176/179 of MilkTeaOperateRequest/Reply
+// independently confirmed from official WeChat miniapp package v75
+// (AppID wx5306c5978fdb76e4, _subpackages_main_.wxapkg -> subpackages/main/game.js):
+// decoder cases and encoder tags (1234/1258/1266/.../1434) match exactly;
+// fields 154-179 are nested messages (decode(reader, length)). See
+// core/docs/milk-tea-wechat-v75-field-evidence.md.
 
 message ActivityBodyMilkTea {
   MilkTeaActivitySummary summary = 1;
@@ -213,7 +219,7 @@ message MilkTeaHireReq {
 }
 
 message MilkTeaHireItem {
-  int32 slot_index = 1;
+  optional int32 slot_index = 1;
   int32 duration_id = 2;
   int64 target_gid = 3;
 }

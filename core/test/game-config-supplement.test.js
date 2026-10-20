@@ -176,6 +176,23 @@ test('decoration fruits in the mutant illustrated have complete images', () => {
   assertImageExists(204007, 'golden star bell tower image');
 });
 
+test('milk tea activity fruits resolve official icons', () => {
+  const milkTeaFruits = [
+    [40525, '森野甜莓'],
+    [40526, '森野白桃'],
+    [40527, '森野甜橙'],
+    [40528, '森野红柚'],
+    [40021, '森野可可豆'],
+    [41435, '森野柿子'],
+    [40529, '森野芭乐'],
+    [49005, '森野黄金芽'],
+  ];
+  for (const [fruitId, name] of milkTeaFruits) {
+    assert.equal(getItemById(fruitId)?.name, name);
+    assertImageExists(fruitId, `${name} image`);
+  }
+});
+
 test('current activity plants cover crop and mutant illustrated mappings', () => {
   for (const plant of activityPlants) {
     const seed = getItemById(plant.seedId);

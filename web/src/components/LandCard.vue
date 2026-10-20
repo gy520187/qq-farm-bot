@@ -5,6 +5,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
   land: any
+  showDetails?: boolean
   showActions?: boolean
   farmGrid?: boolean
   farmGridRowOffset?: number
@@ -12,6 +13,7 @@ const props = withDefaults(defineProps<{
   selected?: boolean
   selectionActive?: boolean
 }>(), {
+  showDetails: false,
   showActions: true,
   farmGrid: false,
   farmGridRowOffset: 0,
@@ -24,6 +26,7 @@ const emit = defineEmits<{
   (e: 'fertilize', land: any): void
   (e: 'remove', land: any): void
   (e: 'select', land: any): void
+  (e: 'details', land: any): void
 }>()
 
 const land = computed(() => props.land)
@@ -485,6 +488,17 @@ function getIsometricBubbleClass(targetLand: any) {
       <span v-else-if="land.status === 'stealable'" class="rounded bg-purple-100 px-0.5 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">可偷</span>
     </div>
 
+    <button
+      v-if="showDetails && !isometric"
+      type="button"
+      class="mt-1 rounded px-2 py-1 text-[11px] text-gray-600 underline underline-offset-3 decoration-dotted dark:text-gray-300 hover:text-green-700 focus-visible:outline"
+      :aria-label="`查看第 ${land.id} 块土地详情`"
+      @click.stop="$emit('details', land)"
+      @keydown.stop
+    >
+      土地详情
+    </button>
+
     <div
       v-if="canFertilize || canRemove"
       class="land-actions absolute bottom-2 left-2 right-2 grid grid-cols-2 h-7 gap-1"
@@ -615,6 +629,14 @@ function getIsometricBubbleClass(targetLand: any) {
             <span class="i-carbon-trash-can" />铲除
           </button>
         </div>
+        <button
+          v-if="showDetails"
+          type="button"
+          class="bubble-action mt-2 border-green-600 text-green-700 dark:text-green-300"
+          @click="$emit('details', land)"
+        >
+          <span class="i-carbon-information" />土地详情
+        </button>
       </div>
     </Teleport>
   </div>

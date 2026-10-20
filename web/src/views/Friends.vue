@@ -57,6 +57,8 @@ const localKnownFriendGidSyncCooldownSec = ref(300)
 const localFriendsListCacheTtlSec = ref(60)
 const showBatchAddGidModal = ref(false)
 const batchGidInput = ref('')
+const batchAddMode = ref<'gid' | 'hex'>('gid')
+const batchHexInput = ref('')
 const showGidListModal = ref(false)
 const gidSearchKeyword = ref('')
 const interactFilter = ref('all')
@@ -614,17 +616,162 @@ function parseBatchGids(input: string): number[] {
   return gids
 }
 
+function protoHexToBytes(hex: string): Uint8Array {
+  const clean = String(hex || '').replace(/\s+/g, '')
+  if (!clean)
+    return new Uint8Array(0)
+  const normalized = clean.length % 2 !== 0 ? `0${clean}` : clean
+  const bytes = new Uint8Array(normalized.length / 2)
+  for (let i = 0; i < normalized.length; i += 2)
+    bytes[i / 2] = Number.parseInt(normalized.substr(i, 2), 16)
+  return bytes
+}
+
+class ProtoDecoder {
+  private offset = 0
+
+  constructor(private readonly buffer: Uint8Array) {}
+
+  readVarint(): number {
+    let value = 0
+    let shift = 0
+    while (this.offset < this.buffer.length) {
+      const b = this.buffer[this.offset] ?? 0
+      this.offset++
+      if (shift < 53)
+        value += (b & 0x7f) * 2 ** shift
+      if (!(b & 0x80))
+        break
+      shift += 7
+    }
+    return value
+  }
+
+  readBytes(length: number): Uint8Array {
+    const bytes = this.buffer.slice(this.offset, this.offset + length)
+    this.offset += length
+    return bytes
+  }
+
+  isPrintable(bytes: Uint8Array): boolean {
+    for (let i = 0; i < Math.min(bytes.length, 100); i++) {
+      const byte = bytes[i] ?? 0
+      if (byte < 32 || byte > 126)
+        return false
+    }
+    return true
+  }
+
+  decode(): Record<number, any> {
+    const result: Record<number, any> = {}
+    while (this.offset < this.buffer.length) {
+      const key = this.readVarint()
+      const fieldNum = key >> 3
+      const wireType = key & 0x07
+      let value: any
+      if (wireType === 0) {
+        value = this.readVarint()
+      }
+      else if (wireType === 2) {
+        const length = this.readVarint()
+        const bytes = this.readBytes(length)
+        if (length === 0) {
+          value = ''
+        }
+        else if (this.isPrintable(bytes)) {
+          value = new TextDecoder('utf-8').decode(bytes)
+        }
+        else {
+          const nested = new ProtoDecoder(bytes).decode()
+          value = Object.keys(nested).length > 0
+            ? nested
+            : `[bytes ${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 40)}...]`
+        }
+      }
+      else if (wireType === 1) {
+        value = `0x${Array.from(this.readBytes(8)).map(b => b.toString(16).padStart(2, '0')).join('')}`
+      }
+      else if (wireType === 5) {
+        value = `0x${Array.from(this.readBytes(4)).map(b => b.toString(16).padStart(2, '0')).join('')}`
+      }
+      else {
+        value = `[wire_type_${wireType}]`
+      }
+      if (!(fieldNum in result))
+        result[fieldNum] = value
+      else if (Array.isArray(result[fieldNum]))
+        result[fieldNum].push(value)
+      else
+        result[fieldNum] = [result[fieldNum], value]
+    }
+    return result
+  }
+}
+
+function extractFriendGidsFromDecoded(decoded: Record<number, any>): number[] {
+  const service = decoded[1]
+  if (!service || typeof service !== 'object' || Array.isArray(service))
+    return []
+  if (service[1] !== 'gamepb.friendpb.FriendService')
+    return []
+  const topTwo = decoded[2]
+  if (!topTwo)
+    return []
+  const topTwoList = Array.isArray(topTwo) ? topTwo : [topTwo]
+  const gids: number[] = []
+  for (const msg of topTwoList) {
+    if (!msg || typeof msg !== 'object' || Array.isArray(msg))
+      continue
+    const list = msg[1]
+    if (!list)
+      continue
+    const items = Array.isArray(list) ? list : [list]
+    for (const item of items) {
+      let gid: number
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        gid = Number(item[1])
+      }
+      else if (typeof item === 'number') {
+        gid = item
+      }
+      else {
+        continue
+      }
+      if (Number.isSafeInteger(gid) && gid > 0 && !gids.includes(gid))
+        gids.push(gid)
+    }
+  }
+  return gids
+}
+
+function decodeProtoHexToGids(hex: string): number[] {
+  try {
+    const bytes = protoHexToBytes(hex)
+    if (!bytes.length)
+      return []
+    return extractFriendGidsFromDecoded(new ProtoDecoder(bytes).decode())
+  }
+  catch {
+    return []
+  }
+}
+
+const decodedHexGids = computed(() => decodeProtoHexToGids(batchHexInput.value))
+
 async function handleBatchAddKnownFriendGids() {
   if (!currentAccountId.value)
     return
-  const gids = parseBatchGids(batchGidInput.value)
+  const gids = batchAddMode.value === 'hex'
+    ? decodeProtoHexToGids(batchHexInput.value)
+    : parseBatchGids(batchGidInput.value)
   if (gids.length === 0) {
-    toast.error('请输入有效的 GID 列表')
+    toast.error(batchAddMode.value === 'hex' ? '未从原始数据中解码出有效 GID' : '请输入有效的 GID 列表')
     return
   }
   const result = await friendStore.batchAddKnownFriendGids(currentAccountId.value, gids)
   if (result.ok) {
     batchGidInput.value = ''
+    batchHexInput.value = ''
     showBatchAddGidModal.value = false
     await refreshFriendsAfterKnownGidChange()
     toast.success(`已批量添加 ${result.addedCount} 个 GID`)
@@ -995,15 +1142,68 @@ async function handleBatchAddKnownFriendGids() {
           <h3 class="mb-4 text-lg text-gray-800 font-semibold dark:text-gray-100">
             批量新增 GID
           </h3>
-          <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
-            支持一行一个或用逗号/空格分隔，自动去重
-          </p>
-          <textarea
-            v-model="batchGidInput"
-            rows="8"
-            placeholder="每行一个 GID，或用逗号、空格分隔&#10;例如：&#10;12345678&#10;87654321&#10;或&#10;12345678, 87654321, 11111111"
-            class="mb-4 w-full border border-gray-300 rounded-lg bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
+          <div class="mb-4 flex gap-2">
+            <button
+              type="button"
+              class="rounded-lg px-3 py-1.5 text-sm font-medium transition"
+              :class="batchAddMode === 'gid' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+              @click="batchAddMode = 'gid'"
+            >
+              直接输入 GID
+            </button>
+            <button
+              type="button"
+              class="rounded-lg px-3 py-1.5 text-sm font-medium transition"
+              :class="batchAddMode === 'hex' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+              @click="batchAddMode = 'hex'"
+            >
+              粘贴原始数据
+            </button>
+          </div>
+
+          <template v-if="batchAddMode === 'gid'">
+            <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+              支持一行一个或用逗号/空格分隔，自动去重
+            </p>
+            <textarea
+              v-model="batchGidInput"
+              rows="8"
+              placeholder="每行一个 GID，或用逗号、空格分隔&#10;例如：&#10;12345678&#10;87654321&#10;或&#10;12345678, 87654321, 11111111"
+              class="mb-4 w-full border border-gray-300 rounded-lg bg-white p-3 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </template>
+          <template v-else>
+            <p class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+              粘贴十六进制 Protobuf 原始数据，自动解码提取好友 GID（识别 FriendService 响应）
+            </p>
+            <textarea
+              v-model="batchHexInput"
+              rows="6"
+              placeholder="粘贴十六进制数据，例如：&#10;0a 1b 67 61 6d 65 70 62 2e 66 72 69 65 6e 64 70 62 2e ..."
+              class="mb-3 w-full border border-gray-300 rounded-lg bg-white p-3 text-sm font-mono dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            <div class="mb-4 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/60">
+              <div class="mb-1.5 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span>解码结果</span>
+                <span :class="decodedHexGids.length ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'">
+                  {{ decodedHexGids.length ? `提取到 ${decodedHexGids.length} 个 GID` : '未识别到 GID' }}
+                </span>
+              </div>
+              <div v-if="decodedHexGids.length" class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="gid in decodedHexGids"
+                  :key="gid"
+                  class="rounded-full bg-blue-50 px-2 py-0.5 font-mono text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                >
+                  {{ gid }}
+                </span>
+              </div>
+              <div v-else class="text-xs text-gray-400 dark:text-gray-500">
+                等待粘贴 FriendService 响应数据…
+              </div>
+            </div>
+          </template>
+
           <div class="flex justify-end gap-3">
             <button
               class="border border-gray-300 rounded-lg bg-white px-4 py-2 text-sm text-gray-700 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
@@ -1013,7 +1213,7 @@ async function handleBatchAddKnownFriendGids() {
             </button>
             <button
               class="rounded-lg px-4 py-2 text-sm text-white transition disabled:opacity-50"
-              :disabled="knownFriendSettingsSaving || !batchGidInput.trim()"
+              :disabled="knownFriendSettingsSaving || (batchAddMode === 'gid' ? !batchGidInput.trim() : decodedHexGids.length === 0)"
               :style="{ backgroundColor: 'var(--theme-primary)' }"
               @click="handleBatchAddKnownFriendGids"
             >

@@ -42,7 +42,7 @@ function setup({ now = WINDOW.startTime + 100, diamond = false, unlocked = true,
     { head: { id: '2026110104' }, share_reward: { summary: { current_score: 10, milestones: [{ tier_id: 1, threshold: 10, state: 2, rewards: [{ id: '80014', count: '1' }] }] } } },
     { head: { id: '2026110103' }, growth_fund: { unlocked: fundUnlocked, unlock_cost: [{ id: '1004', count: '360' }], tiers: [{ tier_id: 1, state: fundState, conditions: [{ type: 'milk_tea_store_level', current_value: 1, target_value: 1, reached: true }], reward: [{ id: '29005', count: '2' }] }] } }
   );
-  const service = createMilkTeaService({ log: (...args) => logs.push(args), types, getServerTimeSec: () => now, getUserState: () => account, log: (...args) => logs.push(args), getBag: async () => inventory, getBagItems: x => x, itemDto: x => ({ ...x, name: '夹具物品' }), sendMsgAsync: async (_, method, bytes) => {
+  const service = createMilkTeaService({ log: (...args) => logs.push(args), types, getServerTimeSec: () => now, getUserState: () => account, getBag: async () => inventory, getBagItems: x => x, itemDto: x => ({ ...x, name: '夹具物品' }), sendMsgAsync: async (_, method, bytes) => {
     if (method === 'GetGroup') return { body: types.MilkTeaGetGroupReply.encode(types.MilkTeaGetGroupReply.fromObject(group)).finish() };
     const req = types.MilkTeaOperateRequest.toObject(types.MilkTeaOperateRequest.decode(bytes), { longs: String });calls.push(req);
     const fixture = Number(req.cmd) === 56 && hireList ? { id: req.id, cmd: req.cmd, milk_tea_get_hire_list: hireList } : Number(req.cmd) === 57 ? { id: req.id, cmd: req.cmd, milk_tea_hire: { results: [{ success: hireSuccess }] } } : Number(req.cmd) === 55 ? fixtures[282] : Number(req.cmd) === 58 ? fixtures[283] : Number(req.cmd) === 63 ? fixtures[206] : Number(req.cmd) === 67 && salesLog ? { id: req.id, cmd: req.cmd, milk_tea_get_sales_log: salesLog } : { id: req.id, cmd: req.cmd };
@@ -154,6 +154,25 @@ test('fund bear decorations and happiness reward resolve to local official icons
   }
 });
 
+test('exchange shop decorations resolve to local official shop icons', () => {
+  const config = require('../src/config/gameConfig');
+  config.loadConfigs();
+  const cases = [
+    [202011, 'img_exchange_item1.png'], [203012, 'img_exchange_item2.png'],
+    [205011, 'img_exchange_item3.png'], [206011, 'img_exchange_item4.png'],
+    [207012, 'img_exchange_item5.png'], [208012, 'img_exchange_item6.png'],
+    [210031, 'img_exchange_item7.png'], [210032, 'img_exchange_item8.png'],
+    [210033, 'img_exchange_item9.png'], [210034, 'img_exchange_item10.png'],
+    [210035, 'img_exchange_item11.png'], [210036, 'img_exchange_item12.png'],
+    [210037, 'img_exchange_item13.png'], [2163, 'item_2163.png'],
+  ];
+  for (const [id, file] of cases) {
+    const image = config.getItemImageById(id);
+    assert.equal(image, `/activity/milk-tea/${file}`, String(id));
+    assert.ok(fs.existsSync(path.join(__dirname, '../../web/public', image)), image);
+  }
+});
+
 test('exchange quantity maximum respects inventory, locks, diamonds and settlement', async () => {
   const { service } = setup();
   assert.equal((await service.getMilkTea()).goods[0].maxPurchasable, 100);
@@ -221,7 +240,9 @@ test('batch shop quantity matches latest official encoder reconstruction', () =>
 const { selectHireCandidate, normalizeHireOptions } = require('../src/services/activity-milk-tea');
 const employee = (gid, talent, extra = {}) => ({ friend: { gid: String(gid) }, talent_id: talent, state: 0, ...extra });
 test('hire chooses first matching idle friend, then other idle friends, then interns', () => {
-  const other = employee(1, 9002), matching = employee(2, 9001), robot = employee(3, 9004, { is_robot: true });
+  const other = employee(1, 9002);
+  const matching = employee(2, 9001);
+  const robot = employee(3, 9004, { is_robot: true });
   const candidates = { friends: [employee(4, 9001, { state: 1 }), other, matching, employee(5, 9001)], robots: [robot] };
   assert.equal(selectHireCandidate(candidates, { talentId: 9001 }, 100), matching);
   assert.equal(selectHireCandidate(candidates, { talentId: 9003 }, 100), other);
@@ -287,4 +308,19 @@ test('milk tea logs localized outcomes, hire fallback and skips without dumping 
   await assert.rejects(rejected.service.operateMilkTea('hire', { autoSelect: true }));
   assert.equal(rejected.logs[0][2].result, 'error');
   assert.match(rejected.logs[0][1], /奶茶券不足/);
+});
+
+test('MilkTeaOperateRequest field numbers match official WeChat v75 generated code', () => {
+  const req = type('MilkTeaOperateRequest');
+  const ids = req.fieldsArray.map(f => f.id).sort((a, b) => a - b);
+  assert.deepEqual(ids, [1, 2, 101, 154, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 179]);
+  for (const field of req.fieldsArray) {
+    if (field.id >= 154) assert.ok(field.resolvedType instanceof protobuf.Type, `field ${field.id} should be a nested message`);
+  }
+  const hex = '08001000d20900ea09009a0b00';
+  const decoded = req.toObject(req.decode(Buffer.from(hex, 'hex')), { longs: String });
+  assert.deepEqual(Object.keys(decoded).sort(), ['milk_tea_set_subscribe', 'share_reward_claim_daily', 'share_reward_claim_milestones']);
+  assert.deepEqual(decoded.share_reward_claim_milestones, {});
+  assert.deepEqual(decoded.share_reward_claim_daily, {});
+  assert.deepEqual(decoded.milk_tea_set_subscribe, {});
 });

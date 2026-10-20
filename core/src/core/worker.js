@@ -895,43 +895,57 @@ async function runStarActivityAutoClaims() {
         }
 
         if (milkTeaEnabled) {
-            const { AUTO_ACTIONS, phase } = require('../services/activity-milk-tea');
+            const { AUTO_ACTIONS, phase, normalizeHireOptions } = require('../services/activity-milk-tea');
             const service = require('../services/activity');
+            // 同一周期内复用状态快照，操作成功后用返回的最新状态继续判断，减少重复查询。
+            let state = null;
             for (const [key, action] of Object.entries(AUTO_ACTIONS)) {
                 if (!loginReady || friendSyncPaused || getAutomation()?.[key] !== true) continue;
                 const currentPhase = phase(require('../utils/utils').getServerTimeSec());
                 if (!['business', 'settling'].includes(currentPhase)) break;
                 try {
-                    const state = await service.getMilkTea();
+                    state = state || await service.getMilkTea();
                     if (!Number(state.summary.shop_open_at) && !['shareDaily', 'shareRewards', 'fundRewards'].includes(action)) continue;
+                    if (currentPhase === 'settling' && !['cashier', 'wages', 'shareDaily', 'shareRewards', 'fundRewards'].includes(action)) continue;
+                    if (action === 'cashier' && !state.shop.pending_rewards.some(x => Number(x.count) > 0)) continue;
+                    if (action === 'wages' && !state.summary.has_unclaimed_wage) continue;
+                    if (action === 'upgrade' && !state.summary.can_upgrade) continue;
+                    if (action === 'shareDaily' && state.share?.daily?.daily_reward_claimed) continue;
+                    if (action === 'shareRewards' && !state.share?.milestones?.some(x => Number(x.state) === 2)) continue;
+                    if (action === 'fundRewards' && (!state.fund?.unlocked || !state.fund.tiers.some(x => Number(x.state) === 2))) continue;
                     let params = {};
                     if (action === 'buy') {
                         const goods = state.goods.find(x => x.category_tag === 'seed' && x.unlocked && x.remaining > 0 && !x.paid && x.affordable);
                         if (!goods) continue;
-                        params = { goodsId: goods.id, count: 1 };
+                        // 一次买满余额可承受的数量，减少检查周期。
+                        params = { goodsId: goods.id, count: Math.max(1, Number(goods.maxPurchasable) || 1) };
                     }
-                    if (action === 'hire') {
-                        const capacity = state.levels.find(x => x.level === Number(state.shop.level))?.employee_slot_count || 0;
-                        const slot = Array.from({ length: capacity }, (_, i) => i).find(i => !state.shop.slots.some(x => Number(x.slot_index) === i && Number(x.end_at) > state.serverTime));
-                        if (slot == null) continue;
-                        const options = getAutomation() || {};
-                        params = { slotIndex: slot, autoSelect: true, ...require('../services/activity-milk-tea').normalizeHireOptions({
-                            durationId: options.milk_tea_hire_duration, talentId: options.milk_tea_hire_talent,
-                        }) };
-                    }
-                    if (action === 'cashier' && !state.shop.pending_rewards.some(x => Number(x.count) > 0)) continue;
                     if (action === 'craft' && !state.recipes.some(recipe => recipe.unlocked && recipe.fruits?.length)) continue;
                     if (action === 'boost' && !state.balances.some(item => String(item.id) === String(state.shop.sales_item_id) && Number(item.count) > 0)) continue;
-                    if (action === 'wages' && !state.summary.has_unclaimed_wage) continue;
-                    if (action === 'upgrade' && !state.summary.can_upgrade) continue;
-                    if (currentPhase === 'settling' && !['cashier', 'wages', 'shareDaily', 'shareRewards', 'fundRewards'].includes(action)) continue;
-                    if (action === 'shareDaily' && state.share?.daily?.daily_reward_claimed) continue;
-                    if (action === 'shareRewards' && !state.share?.milestones?.some(x => Number(x.state) === 2)) continue;
-                    if (action === 'fundRewards' && (!state.fund?.unlocked || !state.fund.tiers.some(x => Number(x.state) === 2))) continue;
-                    await service.operateMilkTea(action, params);
+                    const options = getAutomation() || {};
+                    if (action === 'hire') {
+                        // 循环雇佣所有空闲槽位，直到没有空闲员工或奶茶券不足。
+                        let hired = 0;
+                        while (hired < 8) {
+                            const capacity = state.levels.find(x => x.level === Number(state.shop.level))?.employee_slot_count || 0;
+                            const slot = Array.from({ length: capacity }, (_, i) => i).find(i => !state.shop.slots.some(x => Number(x.slot_index) === i && Number(x.end_at) > state.serverTime));
+                            if (slot == null) break;
+                            const result = await service.operateMilkTea('hire', { slotIndex: slot, autoSelect: true, ...normalizeHireOptions({
+                                durationId: options.milk_tea_hire_duration, talentId: options.milk_tea_hire_talent,
+                            }) });
+                            if (result?.skipped) break;
+                            if (result?.activity) state = result.activity;
+                            hired++;
+                        }
+                        continue;
+                    }
+                    const result = await service.operateMilkTea(action, params);
+                    if (result?.activity) state = result.activity;
                 } catch (error) {
                     // Mutation failures are logged by the shared service; retain query failures here.
                     if (!error.milkTeaLogged) log('活动', `奶茶热销中自动检查失败：${error.message}`, { module: 'activity', event: '奶茶热销中自动检查', result: 'error' });
+                    // 状态可能已过时，下一个动作重新拉取。
+                    state = null;
                 }
             }
         }
@@ -2291,6 +2305,10 @@ function syncStatus() {
     };
     stats.automation = getAutomation();
     stats.levelProgress = levelProgress;
+    stats.levelForecast = require('../services/level-forecast').getLevelForecast(
+        userState, levelProgress, stats, stats.automation,
+        !!require('../services/friend-api').inFarmQuietHours(),
+    );
     stats.configRevision = appliedConfigRevision;
 
     const stableStats = { ...stats };
