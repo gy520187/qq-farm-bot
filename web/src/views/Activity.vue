@@ -6,8 +6,6 @@ import api from '@/api'
 import CharityFlowerActivityPanel from '@/components/activity/CharityFlowerActivityPanel.vue'
 import HeluExchangePanel from '@/components/activity/HeluExchangePanel.vue'
 import HeluPassportPanel from '@/components/activity/HeluPassportPanel.vue'
-import SolarTermsActivityPanel from '@/components/activity/SolarTermsActivityPanel.vue'
-import HeluSolarTermsPanel from '@/components/activity/HeluSolarTermsPanel.vue'
 import QixiActivityPanel from '@/components/activity/QixiActivityPanel.vue'
 import RainPoemActivityPanel from '@/components/activity/RainPoemActivityPanel.vue'
 import StarRecordPanel from '@/components/activity/StarRecordPanel.vue'
@@ -84,7 +82,6 @@ const {
   heluActivity: activity,
   heluLoading,
   passportClaimLoading,
-  solarClaimLoading,
   starRecordClaimLoading,
   exchangeLoading,
   heluError,
@@ -169,7 +166,6 @@ const sections = computed<ActivitySection[]>(() => [
   { key: 'journey', label: '千星游记', icon: 'i-carbon-map', count: activity.value?.passport?.claimableLevels || 0 },
   { key: 'records', label: '观星礼录', icon: 'i-carbon-star', count: activity.value?.starRecord?.claimableCount || 0 },
   { key: 'shop', label: '星砂兑换商店', icon: 'i-carbon-store', count: activity.value?.exchangeShop?.length || 0 },
-  { key: 'notes', label: '节令小札', icon: 'i-carbon-notebook', count: activity.value?.solarTerms?.claimableCount || 0 },
 ])
 
 function activityWindowStatus(window: { startMs: number, endMs: number }): 'upcoming' | 'active' | 'ended' {
@@ -243,12 +239,6 @@ const activityCards = computed(() => {
         background: `radial-gradient(circle at 84% 18%, hsl(${(hue + 42) % 360} 82% 68% / 0.38), transparent 34%), radial-gradient(circle at 12% 92%, hsl(${(hue + 310) % 360} 75% 58% / 0.26), transparent 38%), linear-gradient(135deg, hsl(${hue} 52% 38%), hsl(${(hue + 32) % 360} 58% 18%))`,
       },
     }
-  })
-  cards.push({ permanent: true, key: 'solar-terms', activityIds: [], adaptedKey: null,
-    title: '节令小札', description: '查看各节令赠礼与领取状态', icon: 'i-carbon-notebook',
-    image: '', imagePosition: 'center', window: { startMs: 0, endMs: 0 },
-    updatedMs: Date.parse('2026-10-15T00:00:00+08:00'), status: 'active', pending: false,
-    backgroundStyle: { background: '#385c46' },
   })
   return cards.sort((left, right) => {
     return right.updatedMs - left.updatedMs
@@ -440,15 +430,6 @@ async function claimPassport() {
   result?.ok ? toast.success('千星游记奖励领取完成') : toast.error(result?.error || '千星游记领取失败')
 }
 
-async function claimSolar(term: { id: number, title?: string }) {
-  if (!currentAccountId.value)
-    return
-  const result = await activityStore.claimHeluSolar(currentAccountId.value, term.id)
-  result?.ok
-    ? toast.success(`节令小札领取完成：${term.title || term.id}`)
-    : toast.error(result?.error || '节令小札领取失败')
-}
-
 async function exchangeStarSand(item: { id: number, itemName?: string, name?: string }, count: number) {
   if (!currentAccountId.value)
     return
@@ -625,7 +606,6 @@ onUnmounted(() => {
       </div>
     </section>
 
-    <SolarTermsActivityPanel v-else-if="selectedActivity === 'solar-terms'" :labels="L" @back="selectedActivity = null" />
     <div v-else-if="selectedActivityCard?.adaptedKey === 'rain-poem' && selectedActivityCard.status === 'active'" class="space-y-3">
       <button class="inline-flex items-center gap-1.5 text-sm text-gray-500 transition hover:text-gray-900 dark:hover:text-white" @click="selectedActivity = null">
         <span class="i-carbon-arrow-left" />
@@ -889,13 +869,6 @@ onUnmounted(() => {
         :loading="passportClaimLoading"
         :labels="L"
         @claim="claimPassport"
-      />
-      <HeluSolarTermsPanel
-        v-else
-        :solar-terms="activity?.solarTerms"
-        :loading="solarClaimLoading"
-        :labels="L"
-        @claim="claimSolar"
       />
     </template>
   </section>
