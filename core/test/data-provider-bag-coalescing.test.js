@@ -70,7 +70,7 @@ test('getBag keeps accounts separate and releases failed requests', async () => 
   assert.deepEqual(await retry, { account: 1 });
 });
 
-test('getIllustratedList coalesces only identical read parameters', async () => {
+test('getIllustratedSnapshot coalesces concurrent requests for the same account', async () => {
   const calls = [];
   const pending = [deferred(), deferred()];
   const provider = createProvider((accountId, method, ...args) => {
@@ -78,18 +78,18 @@ test('getIllustratedList coalesces only identical read parameters', async () => 
     return pending[calls.length - 1].promise;
   });
 
-  const cropOne = provider.getIllustratedList('account-1', 1, undefined);
-  const cropTwo = provider.getIllustratedList('account-1', 1, undefined);
-  const mutant = provider.getIllustratedList('account-1', 2, undefined);
+  const cropOne = provider.getIllustratedSnapshot('account-1');
+  const cropTwo = provider.getIllustratedSnapshot('account-1');
+  const mutant = provider.getIllustratedSnapshot('account-2');
   await Promise.resolve();
 
   assert.deepEqual(calls, [
-    { accountId: 'account-1', method: 'getIllustratedList', args: [1, undefined] },
-    { accountId: 'account-1', method: 'getIllustratedList', args: [2, undefined] }
+    { accountId: 'account-1', method: 'getIllustratedSnapshot', args: [] },
+    { accountId: 'account-2', method: 'getIllustratedSnapshot', args: [] },
   ]);
-  pending[0].resolve({ type: 1 });
-  pending[1].resolve({ type: 2 });
-  assert.deepEqual(await cropOne, { type: 1 });
-  assert.deepEqual(await cropTwo, { type: 1 });
-  assert.deepEqual(await mutant, { type: 2 });
+  pending[0].resolve({ crop: {} });
+  pending[1].resolve({ crop: {} });
+  assert.deepEqual(await cropOne, { crop: {} });
+  assert.deepEqual(await cropTwo, { crop: {} });
+  assert.deepEqual(await mutant, { crop: {} });
 });

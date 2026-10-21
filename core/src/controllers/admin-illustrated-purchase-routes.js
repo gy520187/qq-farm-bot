@@ -1,10 +1,3 @@
-const {
-  collectBuyableIllustratedItems,
-  getSeedShopGoodsMap,
-  getUserLevel,
-} = require("./admin-illustrated-helpers");
-const { getNongmePlantData } = require("../services/nongme-plant-data");
-
 const BUY_ALL_DELAY_MS = 200;
 
 function delay(ms) {
@@ -83,24 +76,11 @@ function registerAdminIllustratedPurchaseRoutes({
     if (!accountId) return;
 
     try {
-      const userLevel = getUserLevel(provider, accountId);
       const illustratedType = Number(req.body?.illustrated_type) || 1;
-      const [seedGoodsMap, illustratedList, nongmeData] = await Promise.all([
-        getSeedShopGoodsMap({
-          provider,
-          accountId,
-          adminLogger,
-        }),
-        provider.getIllustratedList(accountId, false, illustratedType),
-        getNongmePlantData(),
-      ]);
-      const buyableItems = collectBuyableIllustratedItems(
-        illustratedList?.items || [],
-        {
-          seedGoodsMap,
-          userLevel,
-          nongmeFruitMap: nongmeData.byFruitId,
-        },
+      const snapshot = await provider.getIllustratedSnapshot(accountId);
+      const book = illustratedType === 2 ? snapshot?.mutant : snapshot?.crop;
+      const buyableItems = (book?.items || []).filter(
+        item => item.shopSeed?.goodsId && !item.shopSeed.locked && !item.shopSeed.soldOut && !item.shopSeed.unknownMeta,
       );
 
       adminLogger.info("图鉴一键购买开始", {
@@ -114,16 +94,20 @@ function registerAdminIllustratedPurchaseRoutes({
 
       for (const item of buyableItems) {
         try {
-          await provider.buyGoods(accountId, item.goodsId, 1, item.price);
+          await provider.buyGoods(accountId, item.shopSeed.goodsId, 1, item.shopSeed.price || 0);
           results.push({
-            ...item,
+            seedId: item.seedId,
+            name: item.name,
+            goodsId: item.shopSeed.goodsId,
             success: true,
           });
           successCount++;
           await delay(BUY_ALL_DELAY_MS);
         } catch (err) {
           results.push({
-            ...item,
+            seedId: item.seedId,
+            name: item.name,
+            goodsId: item.shopSeed.goodsId,
             success: false,
             error: err.message,
           });

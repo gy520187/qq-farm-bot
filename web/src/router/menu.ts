@@ -66,6 +66,13 @@ export const menuRoutes: MenuItem[] = [
     component: () => import('@/views/Analytics.vue'),
   },
   {
+    path: 'solar-calendar',
+    name: 'solar-calendar',
+    label: '节令日历',
+    icon: 'i-carbon-calendar',
+    component: () => import('@/views/SolarCalendar.vue'),
+  },
+  {
     path: 'settings',
     name: 'Settings',
     label: '设置',

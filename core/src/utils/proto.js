@@ -51,6 +51,7 @@ async function loadProto() {
         getResourcePath('proto', 'acepb.proto'),
         getResourcePath('proto', 'careerpb.proto'),
         getResourcePath('proto', 'paypb.proto'),
+        getResourcePath('proto', 'solartermspb.proto'),
     ], { keepCase: true });
 
     for (const name of ['MilkTeaOperateRequest', 'MilkTeaOperateReply', 'MilkTeaGetGroupReply']) {
@@ -266,6 +267,13 @@ async function loadProto() {
     // 宠物
     types.ActivateDogRequest = root.lookupType('gamepb.dogpb.ActivateDogRequest');
     types.ActivateDogReply = root.lookupType('gamepb.dogpb.ActivateDogReply');
+
+    // 节令日历 V2
+    for (const name of ['GetSolarTermsV2', 'ClaimSolarTermsV2', 'AnswerSolarTerms', 'ClaimSolarSeason']) {
+        for (const suffix of ['Request', 'Reply']) {
+            types[name + suffix] = root.lookupType(`gamepb.solartermspb.${name}${suffix}`);
+        }
+    }
 
     // Proto 加载完成
     log('系统', 'Protobuf 定义加载完成');

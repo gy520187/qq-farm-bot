@@ -53,6 +53,7 @@ const { registerAdminPetRoutes } = require("./admin-pet-routes");
 const {
   registerAdminPlantBlacklistRoutes,
 } = require("./admin-plant-blacklist-routes");
+const { registerAdminSolarCalendarRoutes } = require("./admin-solar-calendar-routes");
 const { registerAdminProxyRoutes } = require("./admin-proxy-routes");
 const { registerAdminPublicInfoRoutes } = require("./admin-public-info-routes");
 const { registerAdminQrLoginRoutes } = require("./admin-qr-login-routes");
@@ -478,6 +479,14 @@ function startAdminServer(dataProvider) {
     app,
     provider,
     requireAdminToken,
+    getAccountIdFromRequest,
+    canAccessAccount,
+    sendProviderError,
+  });
+  registerAdminSolarCalendarRoutes({
+    app,
+    provider,
+    logger: adminLogger,
     getAccountIdFromRequest,
     canAccessAccount,
     sendProviderError,

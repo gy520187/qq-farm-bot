@@ -94,10 +94,10 @@ async function claimDailyReward(type, pointIds) {
 
 async function claimAllIllustratedRewards() {
   if (!types.ClaimAllRewardsV2Request || !types.ClaimAllRewardsV2Reply) {
-    return { items: [], bonus_items: [] };
+    return { total_rewards: [] };
   }
   const request = types.ClaimAllRewardsV2Request.encode(
-    types.ClaimAllRewardsV2Request.create({ only_claimable: true })
+    types.ClaimAllRewardsV2Request.create({ type: 1 })
   ).finish();
   const { body } = await sendMsgAsync(
     'gamepb.illustratedpb.IllustratedService',
@@ -290,10 +290,7 @@ async function checkAndClaimIllustratedRewards() {
   try {
     const beforeTicket = await getTicketBalanceFromBag();
     const reply = await claimAllIllustratedRewards();
-    const allItems = [
-      ...(Array.isArray(reply && reply.items) ? reply.items : []),
-      ...(Array.isArray(reply && reply.bonus_items) ? reply.bonus_items : []),
-    ];
+    const allItems = Array.isArray(reply && reply.total_rewards) ? reply.total_rewards : [];
     const afterTicket = await getTicketBalanceFromBag();
     const ticketGain = Math.max(0, afterTicket - beforeTicket);
 

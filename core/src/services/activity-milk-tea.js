@@ -152,8 +152,10 @@ function createMilkTeaService({ types, sendMsgAsync, getBag, getBagItems, getSer
     if (action === 'hire') {
       const duration = catalog.MilkTeaHireDurationConfig.find(x => x.duration_id === Number(input.durationId || 1));
       if (!duration || state.settleTime - now < duration.min_remaining_business_sec) fail('剩余营业时间不足');
-      const slot = Number(input.slotIndex ?? 0); const count = catalog.MilkTeaStoreLevelConfig.find(x => x.level === Number(state.shop.level))?.employee_slot_count || 0;
-      if (!Number.isInteger(slot) || slot < 0 || slot >= count || state.shop.slots.some(x => Number(x.slot_index) === slot && Number(x.end_at) > now)) fail('员工位置不可用');
+      const count = catalog.MilkTeaStoreLevelConfig.find(x => x.level === Number(state.shop.level))?.employee_slot_count || 0;
+      const slot = Array.from({ length: count }, (_, index) => index)
+        .find(index => !state.shop.slots.some(x => Number(x.slot_index) === index && Number(x.end_at) > now));
+      if (slot === undefined) fail('员工位置已满');
       const candidates = await op('hireList', { duration_id: duration.duration_id });
       const target = input.autoSelect === true ? selectHireCandidate(candidates, input, now)
         : input.targetGid == null ? list(candidates.robots).find(x => Number(x.state) === 0)

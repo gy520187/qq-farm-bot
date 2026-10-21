@@ -106,6 +106,12 @@ let mutantEffectConfig = null;
 const mutantEffectMap = new Map();       // mutantId → mutantEffect
 const mutantEffectByIconMap = new Map(); // icon → mutantEffect
 
+// 图鉴与属性加成配置
+let illustratedConfig = null;
+const illustratedItemMap = new Map();    // param(itemId) → illustrated entry
+let buffConfig = null;
+const buffConfigMap = new Map();         // id → buff entry
+
 /** 加载所有游戏配置文件 */
 function loadConfigs() {
     const basePath = getResourcePath('gameConfig');
@@ -343,6 +349,38 @@ function loadConfigs() {
         }
     } catch (err) {
         console.warn('[配置] 加载 MutantEffect.json 失败:', err.message);
+    }
+
+    // 7. 加载图鉴配置
+    try {
+        const illustratedPath = path.join(basePath, 'Illustrated.json');
+        if (fs.existsSync(illustratedPath)) {
+            illustratedConfig = JSON.parse(fs.readFileSync(illustratedPath, 'utf8'));
+            illustratedItemMap.clear();
+            for (const entry of illustratedConfig) {
+                const itemId = Number(entry && entry.param) || 0;
+                if (itemId > 0) illustratedItemMap.set(itemId, entry);
+            }
+            console.warn(`[配置] 已加载图鉴配置 (${  illustratedItemMap.size  } 项)`);
+        }
+    } catch (err) {
+        console.warn('[配置] 加载 Illustrated.json 失败:', err.message);
+    }
+
+    // 8. 加载属性加成配置
+    try {
+        const buffPath = path.join(basePath, 'BuffCfg.json');
+        if (fs.existsSync(buffPath)) {
+            buffConfig = JSON.parse(fs.readFileSync(buffPath, 'utf8'));
+            buffConfigMap.clear();
+            for (const entry of buffConfig) {
+                const id = Number(entry && entry.id) || 0;
+                if (id > 0) buffConfigMap.set(id, entry);
+            }
+            console.warn(`[配置] 已加载属性加成配置 (${  buffConfigMap.size  } 项)`);
+        }
+    } catch (err) {
+        console.warn('[配置] 加载 BuffCfg.json 失败:', err.message);
     }
 }
 
@@ -753,6 +791,47 @@ function getMutantEffectsByIds(ids) {
         .filter(effect => effect !== undefined);
 }
 
+function getIllustratedTypeByParam(param) {
+    const entry = illustratedItemMap.get(Number(param) || 0);
+    return String(entry && entry.type || '');
+}
+
+function getIllustratedSortByParam(param) {
+    const entry = illustratedItemMap.get(Number(param) || 0);
+    return Number(entry && entry.sort) || 0;
+}
+
+function illustratedBuffDto(entry) {
+    const value = Number(entry.attr_value) || 0;
+    return {
+        id: Number(entry.id) || 0,
+        level: Number(entry.source_param) || 0,
+        name: String(entry.attr_id || ''),
+        value,
+        valueType: value > 10 ? 'probability' : 'quantity',
+    };
+}
+
+function getIllustratedBuffsByLevel(level) {
+    const maxLevel = Math.max(0, Number(level) || 0);
+    const latestByAttribute = new Map();
+    [...buffConfigMap.values()]
+        .filter(entry => entry.source_type === '超变升级' && Number(entry.source_param) <= maxLevel)
+        .sort((a, b) => Number(a.source_param) - Number(b.source_param))
+        .forEach(entry => {
+            const name = String(entry.attr_id || '');
+            if (name) latestByAttribute.set(name, illustratedBuffDto(entry));
+        });
+    return [...latestByAttribute.values()].sort((a, b) => a.level - b.level);
+}
+
+function getIllustratedBuffs() {
+    return [...buffConfigMap.values()]
+        .filter(entry => entry.source_type === '超变升级')
+        .sort((a, b) => Number(a.source_param) - Number(b.source_param))
+        .map(illustratedBuffDto);
+}
+
 // 启动时加载配置
 loadConfigs();
 
@@ -788,5 +867,9 @@ module.exports = {
     getMutantEffectById,
     getMutantEffectByIcon,
     getAllMutantEffects,
-    getMutantEffectsByIds
+    getMutantEffectsByIds,
+    getIllustratedTypeByParam,
+    getIllustratedSortByParam,
+    getIllustratedBuffsByLevel,
+    getIllustratedBuffs
 };

@@ -3,58 +3,79 @@ import { ref } from 'vue'
 import api from '@/api'
 import { useAccountStore } from '@/stores/account'
 
-export interface IllustratedItem {
-  seedId: number
-  illustratedTier?: number
+export interface IllustratedReward {
+  itemId: number
+  count: number
   name: string
   image?: string
-  level: number
-  layer?: number
-  unlocked: boolean
-  plantedCount?: number
-  harvestCount?: number
-  wishProgress?: {
-    type: number
-    current: number
-    total: number
-  } | null
-  canBuy?: boolean
-  goodsId?: number
-  price?: number
 }
 
-export interface IllustratedSummary {
-  total: number
-  unlocked: number
-  locked: number
-  canBuy: number
+export interface IllustratedLevel {
+  level: number
+  progress: number
+  claimed: boolean
+  canClaim: boolean
+  rewards: IllustratedReward[]
+}
+
+export interface IllustratedItem {
+  seedId: number
+  name: string
+  image?: string
+  rewardCategory: number
+  group: 'gold' | 'decoration' | 'activity'
+  sort: number
+  cropCategory: number
+  unlocked: boolean
+  progress: number
+  isNew: boolean
+  reward: any
+  attributes: any[]
+  shopSeed?: {
+    goodsId: number
+    price: number | null
+    locked: boolean
+    soldOut: boolean
+    unknownMeta: boolean
+    requiresUnlockCard: boolean
+    requiredLevel?: number
+    remainingPurchaseCount?: number
+    itemCount?: number
+  } | null
+}
+
+export interface IllustratedBook {
+  type: number
+  level: number
+  progress: number
+  nextLevelProgress: number
+  claimable: boolean
+  rewards: IllustratedReward[]
+  buffs: any[]
+  currentBuffs: any[]
+  items: IllustratedItem[]
+  levels: IllustratedLevel[]
+}
+
+export interface IllustratedSnapshot {
+  crop: IllustratedBook
+  mutant: IllustratedBook
+  updatedAt: number
 }
 
 export const useIllustratedStore = defineStore('illustrated', () => {
-  const items = ref<IllustratedItem[]>([])
-  const summary = ref<IllustratedSummary>({
-    total: 0,
-    unlocked: 0,
-    locked: 0,
-    canBuy: 0,
-  })
-  const userLevel = ref(0)
+  const data = ref<IllustratedSnapshot | null>(null)
   const loading = ref(false)
   const buying = ref(false)
+  const claiming = ref(false)
   const error = ref('')
   let fetchRequestId = 0
 
   function clearIllustratedData() {
-    items.value = []
-    summary.value = {
-      total: 0,
-      unlocked: 0,
-      locked: 0,
-      canBuy: 0,
-    }
-    userLevel.value = 0
+    data.value = null
     loading.value = false
     buying.value = false
+    claiming.value = false
     error.value = ''
   }
 
@@ -64,7 +85,7 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     return currentId === String(accountId)
   }
 
-  async function fetchList(accountId: string, refresh = false, illustratedType = 1) {
+  async function fetchList(accountId: string) {
     if (!accountId)
       return
     const requestedId = String(accountId)
@@ -72,19 +93,16 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     loading.value = true
     error.value = ''
     try {
-      const { data } = await api.get('/api/illustrated', {
-        params: { refresh, illustrated_type: illustratedType },
+      const { data: response } = await api.get('/api/illustrated', {
         headers: { 'x-account-id': accountId },
       })
       if (requestId !== fetchRequestId || !isCurrentAccount(requestedId))
         return
-      if (data.ok) {
-        items.value = data.data?.items || []
-        summary.value = data.data?.summary || summary.value
-        userLevel.value = data.data?.userLevel || 0
+      if (response.ok) {
+        data.value = response.data || null
       }
       else {
-        error.value = data.error || '获取图鉴失败'
+        error.value = response.error || '获取图鉴失败'
       }
     }
     catch (err: any) {
@@ -128,16 +146,31 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     }
   }
 
+  async function claimRewards(accountId: string, type: number) {
+    claiming.value = true
+    try {
+      const { data } = await api.post('/api/illustrated/claim', {
+        type,
+      }, {
+        headers: { 'x-account-id': accountId },
+      })
+      return data
+    }
+    finally {
+      claiming.value = false
+    }
+  }
+
   return {
-    items,
-    summary,
-    userLevel,
+    data,
     loading,
     buying,
+    claiming,
     error,
     clearIllustratedData,
     fetchList,
     buySeed,
     buyAllSeeds,
+    claimRewards,
   }
 })

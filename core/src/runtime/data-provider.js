@@ -75,10 +75,10 @@ function createDataProvider(deps) {
         return callWorkerReadOnce(`bag:${String(accountId || '')}`, accountId, 'getBag');
     }
 
-    function getIllustratedList(ref, type, level) {
+    function getIllustratedSnapshot(ref) {
         const accountId = resolveAccountId(ref);
-        const key = `illustrated:${String(accountId || '')}:${String(type)}:${String(level)}`;
-        return callWorkerReadOnce(key, accountId, 'getIllustratedList', type, level);
+        const key = `illustrated:${String(accountId || '')}`;
+        return callWorkerReadOnce(key, accountId, 'getIllustratedSnapshot');
     }
 
     return {
@@ -254,11 +254,13 @@ function createDataProvider(deps) {
         claimSeasonPassportRewards: (ref) => callWorkerApi(resolveAccountId(ref), 'claimSeasonPassportRewards'),
         getSolarTermsInfo: (ref) => callWorkerApi(resolveAccountId(ref), 'getSolarTermsInfo'),
         claimSolarTermsReward: (ref, termId) => callWorkerApi(resolveAccountId(ref), 'claimSolarTermsReward', termId),
+        getSolarCalendar: (ref) => callWorkerApi(resolveAccountId(ref), 'getSolarCalendar'),
+        operateSolarCalendar: (ref, action, input) => callWorkerApi(resolveAccountId(ref), 'operateSolarCalendar', action, input || {}),
         claimQingmeiSeeds: (ref) => callWorkerApi(resolveAccountId(ref), 'claimQingmeiSeeds'),
         brewAndSellQingmeiWine: (ref, options) => callWorkerApi(resolveAccountId(ref), 'brewAndSellQingmeiWine', options || {}),
 
         // ========== Illustrated ==========
-        getIllustratedList,
+        getIllustratedSnapshot,
         claimIllustratedRewards: (ref, type) => callWorkerApi(resolveAccountId(ref), 'claimIllustratedRewards', type),
 
         // ========== Career ==========

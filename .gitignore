@@ -27,5 +27,9 @@ temp/
 *.log
 /.pnpm-store/
 
+# Python 脚本缓存
+__pycache__/
+*.pyc
+
 # 配置合并脚本产生的备份
 *.bak

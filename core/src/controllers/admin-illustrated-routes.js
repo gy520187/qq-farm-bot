@@ -1,14 +1,6 @@
 const {
-  buildIllustratedItem,
-  getSeedShopGoodsMap,
-  getUserLevel,
-  sortIllustratedItems,
-  summarizeIllustratedItems,
-} = require("./admin-illustrated-helpers");
-const {
   registerAdminIllustratedPurchaseRoutes,
 } = require("./admin-illustrated-purchase-routes");
-const { getNongmePlantData } = require("../services/nongme-plant-data");
 
 function getAuthorizedAccountId(req, res, { getAccountIdFromRequest, canAccessAccount }) {
   const accountId = getAccountIdFromRequest(req);
@@ -57,65 +49,26 @@ function registerAdminIllustratedRoutes({
     if (!accountId) return;
 
     try {
-      const refresh = req.query.refresh === "true";
-      const illustratedType = Number(req.query.illustrated_type) || 1;
-      const userLevel = getUserLevel(provider, accountId);
-
-      adminLogger.info("获取图鉴列表请求", {
-        accountId,
-        refresh,
-        illustratedType,
-      });
-
-      const [seedGoodsMap, illustratedList, nongmeData] = await Promise.all([
-        getSeedShopGoodsMap({
-          provider,
-          accountId,
-          adminLogger,
-          tolerateFailure: true,
-        }),
-        provider.getIllustratedList(accountId, refresh, illustratedType),
-        getNongmePlantData(refresh),
-      ]);
-
-      adminLogger.info("图鉴列表数据", {
-        itemsCount: illustratedList?.items?.length || 0,
-        hasRaw: !!illustratedList?.__raw,
-        rawCount: illustratedList?.__raw?.rawItemCount || 0,
-      });
-
-      const items = sortIllustratedItems(
-        (illustratedList?.items || []).map(item =>
-          buildIllustratedItem(item, {
-            seedGoodsMap,
-            userLevel,
-            adminLogger,
-            nongmeFruitMap: nongmeData.byFruitId,
-          }),
-        ),
-      );
-      const summary = summarizeIllustratedItems(items);
-
-      adminLogger.info("图鉴列表返回", {
-        total: summary.total,
-        unlocked: summary.unlocked,
-        canBuy: summary.canBuy,
-        userLevel,
-      });
-
-      res.json({
-        ok: true,
-        data: {
-          items,
-          summary,
-          userLevel,
-          level: Number(illustratedList?.level) || 0,
-          currentScore: Number(illustratedList?.current_score) || 0,
-          nextScore: Number(illustratedList?.next_score) || 0,
-        },
-      });
+      const data = await provider.getIllustratedSnapshot(accountId);
+      res.json({ ok: true, data });
     } catch (err) {
-      adminLogger.error("获取图鉴列表失败", {
+      adminLogger.error("获取图鉴快照失败", {
+        error: err.message,
+        stack: err.stack,
+      });
+      sendProviderError(res, err);
+    }
+  });
+
+  app.post("/api/illustrated/claim", async (req, res) => {
+    const accountId = getAuthorizedAccountId(req, res, routeContext);
+    if (!accountId) return;
+
+    try {
+      const data = await provider.claimIllustratedRewards(accountId, Number(req.body && req.body.type));
+      res.json({ ok: true, data });
+    } catch (err) {
+      adminLogger.error("领取图鉴奖励失败", {
         error: err.message,
         stack: err.stack,
       });

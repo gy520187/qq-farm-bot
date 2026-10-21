@@ -2082,14 +2082,24 @@ async function handleApiCall(msg) {
                 result = await brewAndSellQingmeiWine(args[0] || {});
                 break;
             }
-            case 'getIllustratedList': {
-                const { getIllustratedListV2 } = require('../services/illustrated');
-                result = await getIllustratedListV2(args[0], args[1]);
+            case 'getIllustratedSnapshot': {
+                const { getIllustratedSnapshot } = require('../services/illustrated');
+                result = await getIllustratedSnapshot();
                 break;
             }
             case 'claimIllustratedRewards': {
-                const { claimAllRewardsV2 } = require('../services/illustrated');
-                result = await claimAllRewardsV2(args[0]);
+                const { claimIllustratedRewards } = require('../services/illustrated');
+                result = await claimIllustratedRewards(args[0]);
+                break;
+            }
+            case 'getSolarCalendar': {
+                const { getSolarCalendar } = require('../services/solar-calendar');
+                result = await getSolarCalendar();
+                break;
+            }
+            case 'operateSolarCalendar': {
+                const { operateSolarCalendar } = require('../services/solar-calendar');
+                result = await operateSolarCalendar(args[0], args[1] || {});
                 break;
             }
             case 'getCareerInfo': {

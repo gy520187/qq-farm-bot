@@ -1,291 +1,188 @@
 /**
- * 图鉴服务 - 获取和管理作物图鉴
+ * 图鉴服务 - 获取和管理作物图鉴（官方 V2 协议）
  *
  * 功能：
- * - 获取图鉴列表（支持原始 protobuf 解码回退）
+ * - 获取图鉴快照（作物/超变两个图鉴，含等级奖励与 buff）
  * - 领取图鉴奖励
- * - 图鉴数据汇总与分类
+ * - 数据归一化与商店种子信息合并
  */
-const { types } = require('../utils/proto');
+
+const {
+  getItemById,
+  getItemImageById,
+  getPlantBySeedId,
+  getPlantByFruitId,
+  getPlantNameBySeedId,
+  getIllustratedTypeByParam,
+  getIllustratedSortByParam,
+  getIllustratedBuffsByLevel,
+  getIllustratedBuffs,
+  getAllSeeds,
+} = require('../config/gameConfig');
+const { getAvailableSeeds } = require('./farm');
+const protobuf = require('protobufjs');
 const { sendMsgAsync } = require('../utils/network');
+const { types } = require('../utils/proto');
 const { toNum } = require('../utils/utils');
-const { createModuleLogger } = require('./logger');
 
-const logger = createModuleLogger('illustrated');
+const SERVICE = 'gamepb.illustratedpb.IllustratedService';
 
-// ---- Protobuf 原始解码工具 ----
-
-/**
- * 读取 varint
- */
-function readVarint(buffer, offset) {
-  let value = 0n;
-  let shift = 0n;
-  let pos = offset;
-  while (pos < buffer.length) {
-    const byte = BigInt(buffer[pos]);
-    value |= (byte & 0x7Fn) << shift;
-    pos += 1;
-    if ((byte & 0x80n) === 0n) break;
-    shift += 7n;
-  }
-  return { value, next: pos };
+function getMutantGroup(seedId) {
+  const type = getIllustratedTypeByParam(seedId);
+  if (type === '装扮果实') return 'decoration';
+  if (type === '活动果实') return 'activity';
+  return 'gold';
 }
 
-/**
- * 扫描 Protobuf 消息字段
- */
-function scanProtobufMessage(buf) {
-  const fields = [];
-  let pos = 0;
-  while (pos < buf.length) {
-    const tag = readVarint(buf, pos);
-    if (tag.next <= pos) break;
-    pos = tag.next;
-    const fieldNum = Number(tag.value >> 3n);
-    const wireType = Number(tag.value & 0x7n);
-
-    if (wireType === 0) {
-      // Varint
-      const v = readVarint(buf, pos);
-      fields.push({ field: fieldNum, wire: wireType, value: Number(v.value) });
-      pos = v.next;
-    } else if (wireType === 2) {
-      // Length-delimited
-      const lenTag = readVarint(buf, pos);
-      const length = Number(lenTag.value);
-      const dataStart = lenTag.next;
-      const dataEnd = dataStart + length;
-      fields.push({ field: fieldNum, wire: wireType, length, bytes: buf.subarray(dataStart, dataEnd) });
-      pos = dataEnd;
-    } else if (wireType === 5) {
-      // 32-bit fixed
-      fields.push({ field: fieldNum, wire: wireType, bytes: buf.subarray(pos, pos + 4) });
-      pos += 4;
-    } else if (wireType === 1) {
-      // 64-bit fixed
-      fields.push({ field: fieldNum, wire: wireType, bytes: buf.subarray(pos, pos + 8) });
-      pos += 8;
-    } else {
-      break;
-    }
-  }
-  return fields;
-}
-
-/**
- * 从原始 protobuf 字节解码图鉴回复
- * 用于当 proto 解码失败时的回退方案
- */
-function decodeIllustratedReplyRaw(rawBody) {
-  const fields = scanProtobufMessage(Buffer.from(rawBody));
-  const topLevelVarint = (field) => {
-    const match = fields.find(item => item.field === field && item.wire === 0);
-    return match ? Number(match.value) : 0;
+function rewardDto(input) {
+  const itemId = toNum(input && (input.item_id ?? input.id));
+  const count = Math.max(0, toNum(input && input.count));
+  if (!itemId) return null;
+  const item = getItemById(itemId);
+  return {
+    itemId,
+    count,
+    name: String(item && item.name || `物品${itemId}`),
+    image: getItemImageById(itemId),
   };
+}
 
-  // 提取 field=1, wire=2 的子消息（图鉴条目列表）
-  const rawItems = fields
-    .filter((f) => f.field === 1 && f.wire === 2 && f.bytes)
-    .map((f, idx) => {
-      const subFields = scanProtobufMessage(f.bytes);
-      const summary = {};
-      for (const sf of subFields) {
-        const arr = summary[sf.field] || [];
-        arr.push(sf.wire === 0 ? sf.value : `wire${sf.wire}:${sf.length ?? sf.bytes?.length ?? 0}`);
-        summary[sf.field] = arr;
-      }
-      return { index: idx, byteLength: f.length, fieldSummary: summary, rawBytes: f.bytes, rawHex: Buffer.from(f.bytes).toString('hex') };
-    });
+function attributeDto(input) {
+  const type = toNum(input && input.type);
+  const param = toNum(input && input.param);
+  const value = toNum(input && (input.value ?? input.param));
+  if (!type && !value) return null;
+  return { type, param, value };
+}
 
-  // 标准化 item
-  const normalized = rawItems
-    .map((item) => {
-      const getFieldValue = (fieldNum) => {
-        const sub = scanProtobufMessage(Buffer.from(item.rawBytes));
-        const found = sub.find((f) => f.field === fieldNum && f.wire === 0);
-        return found ? Number(found.value) : 0;
-      };
-      const getFieldBytes = (fieldNum) => {
-        const sub = scanProtobufMessage(Buffer.from(item.rawBytes));
-        const found = sub.find((f) => f.field === fieldNum && f.wire === 2);
-        return found?.bytes ? Buffer.from(found.bytes) : null;
-      };
+function itemDto(input) {
+  const seedId = toNum(input && input.fruit_id);
+  const plant = getPlantBySeedId(seedId);
+  const item = getItemById(seedId);
+  const name = String(item && item.name || plant && plant.name || getPlantNameBySeedId(seedId));
+  return {
+    seedId,
+    name,
+    image: getItemImageById(seedId),
+    rewardCategory: toNum(input && input.rarity),
+    group: getMutantGroup(seedId),
+    sort: getIllustratedSortByParam(seedId),
+    cropCategory: toNum(input && input.layer),
+    unlocked: input && input.unlocked === true,
+    progress: Math.max(0, toNum(input && input.progress)),
+    isNew: input && input.is_new === true,
+    reward: rewardDto(input && input.reward?.[0]),
+    attributes: (Array.isArray(input && input.attributes) ? input.attributes : [])
+      .map(attributeDto)
+      .filter(Boolean),
+  };
+}
 
-      const fruitId = getFieldValue(1);
-      const illustratedTier = getFieldValue(2);
-      const unlockFlag = getFieldValue(3);
-      const rewardScore = getFieldValue(4);
-      const extraValue = getFieldValue(5);
-      const rewardInfoBytes = getFieldBytes(6);
-      const hasReward = getFieldValue(7);
-      const guaranteeInfoBytes = getFieldBytes(8);
-      const guaranteeInfoFields = guaranteeInfoBytes
-        ? scanProtobufMessage(guaranteeInfoBytes)
-        : [];
-      const getGuaranteeValue = (fieldNum) => {
-        const found = guaranteeInfoFields.find((f) => f.field === fieldNum && f.wire === 0);
-        return found ? Number(found.value) : 0;
-      };
-      const guaranteeInfo = guaranteeInfoBytes
-        ? {
-            progress_type: getGuaranteeValue(1),
-            current: getGuaranteeValue(2),
-            total: getGuaranteeValue(3),
-          }
-        : null;
+async function getIllustratedList(type) {
+  // 官方客户端显式写 rarity=0（field 1 = 0）。protobufjs 会省略 proto3 默认值，
+  // 因此手动构造与抓包一致的 wire 格式。
+  const writer = protobuf.Writer.create();
+  writer.uint32(8).int32(0);
+  writer.uint32(16).int32(type);
+  const body = writer.finish();
+  const { body: replyBody } = await sendMsgAsync(SERVICE, 'GetIllustratedListV2', body);
+  return types.GetIllustratedListV2Reply.decode(replyBody);
+}
 
-      return {
-        fruitId,
-        illustratedTier,
-        unlockFlag,
-        unlocked: unlockFlag > 0,
-        planted: unlockFlag > 0,
-        rewardScore,
-        extraValue,
-        rewardInfoBase64: rewardInfoBytes ? rewardInfoBytes.toString('base64') : '',
-        hasReward: hasReward > 0,
-        guaranteeInfo,
-      };
-    })
-    .filter((item) => item.fruitId > 0);
+async function getIllustratedLevels(type) {
+  const body = types.GetIllustratedLevelListV2Request.encode(types.GetIllustratedLevelListV2Request.create({ type })).finish();
+  const { body: replyBody } = await sendMsgAsync(SERVICE, 'GetIllustratedLevelListV2', body);
+  return types.GetIllustratedLevelListV2Reply.decode(replyBody);
+}
+
+function normalizeBook(type, listReply, levelReply) {
+  const levels = (Array.isArray(levelReply && levelReply.level_list) ? levelReply.level_list : []).map(entry => ({
+    level: toNum(entry && entry.level),
+    progress: Math.max(0, toNum(entry && entry.point_condition)),
+    claimed: entry && entry.claimed === true,
+    canClaim: entry && entry.can_claim === true && entry.claimed !== true,
+    rewards: (Array.isArray(entry && entry.rewards) ? entry.rewards : []).map(rewardDto).filter(Boolean),
+  }));
+  const currentLevel = Math.max(toNum(listReply && listReply.current_level), toNum(levelReply && levelReply.current_level));
+  const currentProgress = Math.max(toNum(listReply && listReply.total_progress), toNum(levelReply && levelReply.total_progress));
+  const configuredNext = toNum(listReply && listReply.next_level_progress);
+  const nextLevel = levels.find(entry => entry.level > currentLevel);
 
   return {
-    rawItemCount: rawItems.length,
-    rawItems,
-    normalizedItems: normalized,
-    currentScore: topLevelVarint(2),
-    level: topLevelVarint(3),
-    currentTier: topLevelVarint(6),
-    nextScore: topLevelVarint(7),
-    hasLevelReward: topLevelVarint(9) === 1,
+    type,
+    level: currentLevel,
+    progress: currentProgress,
+    nextLevelProgress: configuredNext || Math.max(0, toNum(nextLevel && nextLevel.progress)),
+    claimable: levels.some(entry => entry.canClaim),
+    rewards: (listReply.total_rewards || []).map(rewardDto).filter(Boolean),
+    buffs: type === 2 ? getIllustratedBuffs() : [],
+    currentBuffs: type === 2 ? getIllustratedBuffsByLevel(currentLevel) : [],
+    items: (Array.isArray(listReply && listReply.list) ? listReply.list : [])
+      .map(itemDto)
+      .sort((a, b) => Number(a.sort || 0) - Number(b.sort || 0)),
+    levels,
   };
 }
 
-// ---- RPC 调用 ----
+let pendingSnapshot = null;
 
-/**
- * 获取图鉴列表
- * @param {boolean} refresh - 是否强制刷新
- * @param {number} illustratedType - 图鉴类型，默认 1
- */
-async function getIllustratedListV2(refresh = false, illustratedType = 1) {
-  const request = types.GetIllustratedListV2Request.encode(
-    types.GetIllustratedListV2Request.create({
-      refresh: !!refresh,
-      illustrated_type: Number(illustratedType) || 1,
-    })
-  ).finish();
-
-  try {
-    const { body } = await sendMsgAsync(
-      'gamepb.illustratedpb.IllustratedService',
-      'GetIllustratedListV2',
-      request
-    );
-
-    logger.info('图鉴API响应', {
-      replyBodyLength: body ? body.length : 0,
-      replyBodyType: typeof body,
-    });
-
-    // 尝试用 proto 解码
-    let decoded;
-    try {
-      decoded = types.GetIllustratedListV2Reply.decode(body);
-      logger.info('图鉴解码成功', { itemsCount: decoded.items ? decoded.items.length : 0 });
-    } catch (err) {
-      logger.error('图鉴解码失败', { error: err.message });
-      decoded = { items: [] };
-    }
-
-    // 原始解析作为回退和辅助
-    const raw = decodeIllustratedReplyRaw(body);
-    logger.info('图鉴原始数据解析', { rawItemCount: raw.rawItemCount, normalizedCount: raw.normalizedItems.length });
-    const summary = {
-      current_score: raw.currentScore,
-      level: raw.level,
-      current_tier: raw.currentTier,
-      next_score: raw.nextScore,
-      has_level_reward: raw.hasLevelReward,
-    };
-
-    // 优先使用 proto 解码的结果
-    if (decoded.items && decoded.items.length > 0) {
-      return { ...decoded, ...summary, __raw: raw };
-    }
-
-    // 回退：用原始解析构建 items
-    if (raw.normalizedItems.length > 0) {
-      const items = raw.normalizedItems.map((item) => ({
-        seed_id: item.fruitId,
-        unlocked: item.unlocked,
-        planted: item.planted,
-        planted_count: 0,
-        harvest_count: 0,
-        category: 1,
-        has_reward: item.hasReward,
-        guarantee_info: item.guaranteeInfo,
-      }));
-      return { items, ...summary, __raw: raw };
-    }
-
-    return { items: [], ...summary, __raw: raw };
-  } catch (err) {
-    logger.error('获取图鉴列表失败', { error: err.message, stack: err.stack });
-    return {
-      items: [],
-      __raw: { rawItemCount: 0, rawItems: [], normalizedItems: [] },
-    };
-  }
-}
-
-/**
- * 领取所有图鉴奖励
- */
-async function claimAllRewardsV2(onlyClaimable = true) {
-  const request = types.ClaimAllRewardsV2Request.encode(
-    types.ClaimAllRewardsV2Request.create({ only_claimable: !!onlyClaimable })
-  ).finish();
-  const { body } = await sendMsgAsync(
-    'gamepb.illustratedpb.IllustratedService',
-    'ClaimAllRewardsV2',
-    request
-  );
-  return types.ClaimAllRewardsV2Reply.decode(body);
-}
-
-// ---- 数据汇总 ----
-
-/**
- * 汇总图鉴条目统计
- */
-function summarizeIllustratedItems(items = []) {
-  const list = Array.isArray(items) ? items : [];
+async function buildIllustratedSnapshot() {
+  // 按官方客户端顺序串行请求：普通图鉴优先级只有 2 个并发槽，一次性并发 4 个请求
+  // 会把自己的请求挤进队列并触发网关压力告警。
+  const cropList = await getIllustratedList(1);
+  const cropLevels = await getIllustratedLevels(1);
+  const mutantList = await getIllustratedList(2);
+  const mutantLevels = await getIllustratedLevels(2);
+  const crop = normalizeBook(1, cropList, cropLevels);
+  const seeds = await getAvailableSeeds();
+  const seedById = new Map(seeds.map(seed => [toNum(seed.seedId), seed]));
+  const localSeeds = new Map(getAllSeeds().map(seed => [toNum(seed.seedId), seed]));
+  crop.items = crop.items.map(item => {
+    const itemId = toNum(item.seedId);
+    const plant = getPlantBySeedId(itemId) || getPlantByFruitId(itemId);
+    const seedId = toNum(plant && plant.seed_id) || itemId;
+    const shopSeed = seedById.get(seedId);
+    const localSeed = localSeeds.get(seedId);
+    return { ...item, seedId, shopSeed: shopSeed || (localSeed ? { ...localSeed, goodsId: 0, price: null, unknownMeta: true, requiresUnlockCard: false } : null) };
+  });
   return {
-    total: list.length,
-    unlocked: list.filter((i) => !!i.unlocked).length,
-    planted: list.filter((i) => !!i.planted).length,
-    claimable: list.filter((i) => !!i.has_reward).length,
+    crop,
+    mutant: normalizeBook(2, mutantList, mutantLevels),
+    updatedAt: Date.now(),
   };
 }
 
-/**
- * 图鉴类型分类
- * 1=作物(crop), 2=鲜花(flower), 3=树木(tree)
- */
-function normalizeIllustratedCategory(value) {
-  const type = toNum(value);
-  if (type === 1) return 'crop';
-  if (type === 2) return 'flower';
-  if (type === 3) return 'tree';
-  return 'unknown';
+// 面板重复打开或多个请求并发时合并为同一轮读取，避免重复发起 4 个 RPC。
+function getIllustratedSnapshot() {
+  if (pendingSnapshot) return pendingSnapshot;
+  const request = buildIllustratedSnapshot();
+  pendingSnapshot = request;
+  request.finally(() => {
+    if (pendingSnapshot === request) pendingSnapshot = null;
+  }).catch(() => {});
+  return request;
+}
+
+let claimTail = Promise.resolve();
+function claimIllustratedRewards(type) {
+  const request = claimTail.then(async () => {
+    if (type !== 1 && type !== 2) throw new Error('图鉴类型无效');
+    const levels = await getIllustratedLevels(type);
+    if (!(levels.level_list || []).some(v => v.can_claim && !v.claimed)) throw new Error('暂无可领取奖励');
+    const body = types.ClaimAllRewardsV2Request.encode({ type }).finish();
+    const reply = await sendMsgAsync(SERVICE, 'ClaimAllRewardsV2', body);
+    const decoded = types.ClaimAllRewardsV2Reply.decode(reply.body);
+    if (!decoded.claimed_level_ids?.length) throw new Error('领取结果未确认，请刷新图鉴后查看');
+    const result = { rewards: (decoded.total_rewards || []).map(rewardDto).filter(Boolean), claimedLevels: decoded.claimed_level_ids };
+    if (pendingSnapshot) await pendingSnapshot.catch(() => {});
+    try { return { ...result, snapshot: await getIllustratedSnapshot() }; }
+    catch { return { ...result, snapshot: null, refreshRequired: true }; }
+  });
+  claimTail = request.catch(() => {});
+  return request;
 }
 
 module.exports = {
-  getIllustratedListV2,
-  claimAllRewardsV2,
-  summarizeIllustratedItems,
-  normalizeIllustratedCategory,
-  decodeIllustratedReplyRaw,
+  getIllustratedSnapshot,
+  claimIllustratedRewards,
 };
