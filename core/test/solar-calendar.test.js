@@ -152,3 +152,44 @@ test('calendar only claims configured, unclaimed season rewards', async () => {
   await assert.rejects(h.service.operateSolarCalendar('season', { id: 4 }));
   await assert.rejects(h.service.operateSolarCalendar('unknown', { id: 4 }));
 });
+test('auto answer completes today quizzes with configured answer index', async () => {
+  const h = harness();
+  const result = await h.service.autoAnswerSolarQuiz();
+  assert.equal(result.answered.length, 1);
+  assert.equal(result.answered[0].id, 401);
+  assert.equal(result.answered[0].correct, true);
+  assert.equal(result.failed.length, 0);
+  assert.equal(h.writes.length, 1);
+  assert.deepEqual(h.writes[0].request, { id: 401, option_index: 0 });
+  assert.equal(h.event.quiz_claimed, true);
+  const second = await h.service.autoAnswerSolarQuiz();
+  assert.equal(second.answered.length, 0);
+  assert.equal(second.failed.length, 0);
+  assert.equal(h.writes.length, 1);
+});
+
+test('auto answer walks all answerable events with configured indices', async () => {
+  const h = harness();
+  h.event.id = 402;
+  const first = await h.service.autoAnswerSolarQuiz();
+  assert.equal(first.answered.length, 1);
+  assert.equal(first.answered[0].id, 402);
+  assert.equal(first.answered[0].correct, false);
+  assert.deepEqual(h.writes[0].request, { id: 402, option_index: 2 });
+  h.event.id = 401;
+  h.event.quiz_claimed = false;
+  h.event.quiz_wrong_today = false;
+  const second = await h.service.autoAnswerSolarQuiz();
+  assert.equal(second.answered.length, 1);
+  assert.equal(second.answered[0].correct, true);
+  assert.deepEqual(h.writes[1].request, { id: 401, option_index: 0 });
+});
+
+test('auto answer skips events without configured answer', async () => {
+  const h = harness();
+  h.event.id = 101;
+  const result = await h.service.autoAnswerSolarQuiz();
+  assert.equal(result.answered.length, 0);
+  assert.equal(result.failed.length, 0);
+  assert.equal(h.writes.length, 0);
+});

@@ -83,4 +83,26 @@ function operateSolarCalendar(action, input = {}) {
     tail = operation.catch(() => {});
     return operation;
 }
-module.exports = { getSolarCalendar, operateSolarCalendar };
+
+/** 自动完成今日可答的节令题目（仅本地配置含正确答案的事件）。 */
+async function autoAnswerSolarQuiz() {
+    const state = await getSolarCalendar();
+    const targets = state.events.filter((event) => event.canAnswer && typeof event.answerIndex === 'number');
+    const answered = [];
+    const failed = [];
+    for (const event of targets) {
+        try {
+            const result = await operateSolarCalendar('answer', {
+                id: event.id,
+                optionIndex: event.answerIndex,
+                expectedQuestion: event.question,
+            });
+            answered.push({ id: event.id, name: event.name, correct: result.correct === true });
+        } catch (err) {
+            failed.push({ id: event.id, name: event.name, error: err.message });
+        }
+    }
+    return { answered, failed };
+}
+
+module.exports = { getSolarCalendar, operateSolarCalendar, autoAnswerSolarQuiz };

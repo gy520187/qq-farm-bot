@@ -250,6 +250,28 @@ function getLocalDateKey() {
 
 // ==================== 每日任务 ====================
 
+/** 节令日历自动答题（开关 solar_quiz_answer）。 */
+async function runSolarQuizAnswerAutomation() {
+    if (!loginReady || friendSyncPaused) return;
+    try {
+        const result = await require('../services/solar-calendar').autoAnswerSolarQuiz();
+        for (const item of result.answered) {
+            log('节令', `自动答题${item.correct ? '成功' : '失败'}: ${item.name}`, {
+                module: 'solar', event: '自动答题', result: item.correct ? 'ok' : 'error',
+            });
+        }
+        for (const item of result.failed) {
+            log('节令', `自动答题失败: ${item.name} ${item.error}`, {
+                module: 'solar', event: '自动答题', result: 'error',
+            });
+        }
+    } catch (err) {
+        log('节令', `自动答题异常: ${err.message}`, {
+            module: 'solar', event: '自动答题', result: 'error',
+        });
+    }
+}
+
 async function runDailyRoutines(force = false, options = {}) {
     if (!loginReady || friendSyncPaused) return;
     try {
@@ -257,6 +279,7 @@ async function runDailyRoutines(force = false, options = {}) {
         await checkAndClaimEmails(force);
         if (automation.task && !options.skipTask) await checkAndClaimTasks();
         if (automation.fertilizer_gift) await openFertilizerGiftPacksSilently();
+        if (automation.solar_quiz_answer) await runSolarQuizAnswerAutomation();
         await performDailyShare(force);
         await performDailyMonthCardGift(force);
         await buyFreeGifts(force);
@@ -1344,6 +1367,13 @@ function applyRuntimeConfig(config, syncStatusAfter = false) {
             if (starClaimBecameEnabled) {
                 workerScheduler.setTimeoutTask('star_activity_claim_after_save', 2000, () => {
                     runStarActivityAutoClaims().catch(() => null);
+                });
+            }
+
+            // 节令日历自动答题从关变开 → 立即执行
+            if (!prevAuto?.solar_quiz_answer && newAuto?.solar_quiz_answer) {
+                workerScheduler.setTimeoutTask('solar_quiz_answer_after_save', 2000, () => {
+                    runSolarQuizAnswerAutomation().catch(() => null);
                 });
             }
 

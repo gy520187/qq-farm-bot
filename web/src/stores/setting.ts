@@ -13,6 +13,7 @@ export interface AutomationConfig {
   star_passport_claim?: boolean
   star_solar_claim?: boolean
   star_record_claim?: boolean
+  solar_quiz_answer?: boolean
   qingmei_seed_claim?: boolean
   qingmei_wine_brew?: boolean
   qixi_dew_use?: boolean
