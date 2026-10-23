@@ -431,12 +431,12 @@ async function refreshIllustratedLevels() {
   const requestId = ++illustratedLevelRequestId
   const headers = { 'x-account-id': accountId }
   try {
-    const snapshot = await api.get('/api/illustrated', { headers })
+    const { data: response } = await api.get('/api/illustrated', { headers })
     if (requestId !== illustratedLevelRequestId || accountId !== currentAccountId.value)
       return
     illustratedLevels.value = {
-      crop: Number(snapshot.data?.crop?.level) || 0,
-      mutant: Number(snapshot.data?.mutant?.level) || 0,
+      crop: Number(response?.data?.crop?.level) || 0,
+      mutant: Number(response?.data?.mutant?.level) || 0,
     }
   }
   catch {
